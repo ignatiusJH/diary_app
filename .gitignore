@@ -1,0 +1,25 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Personal data (절대 업로드 금지)
+uploads/
+data/
+
+# Logs
+*.log
+
+# temp
+temp/

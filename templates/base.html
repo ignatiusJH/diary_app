@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>{% block title %}스텝로그{% endblock %}</title>
+
+    <!-- 공통 스타일 (사막 대비 테마) -->
+    <style>
+        :root {
+            /* 기본 배경 / 표면 */
+            --bg: #fbf6eb;              /* 아주 연한 사막 모래 */
+            --bg-elevated: #f3ebdd;     /* 카드, 패널 배경 */
+            --bg-nav: #8b4a2b;          /* 상단 내비 배경 (진한 브라운) */
+
+            /* 테두리 */
+            --border-soft: #e1d3c1;
+            --border-strong: #b27c4b;
+
+            /* 텍스트 */
+            --text-main: #2b1b10;       /* 기본 본문 텍스트 */
+            --text-sub: #7a5b3a;        /* 서브 텍스트 */
+            --text-on-nav: #fdf7ec;     /* 내비 위 텍스트 */
+
+            /* 포인트 / 액센트 */
+            --accent: #b3672b;          /* 버튼, 강조 포인트 */
+            --accent-soft: #d4b49d;     /* 연한 포인트 */
+            --accent-strong: #f2c14f;   /* 강조되는 하이라이트(밝은 골드) */
+
+            /* 버튼용 */
+            --btn-bg: #e9ddcd;
+            --btn-border: #c9a782;
+            --btn-hover-bg: #dcc8af;
+            --btn-hover-border: #b27c4b;
+        }
+
+        /* =============================
+           전체 기본 톤
+           ============================= */
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                         Roboto, Oxygen, Ubuntu, Cantarell, "Noto Sans KR",
+                         sans-serif;
+        }
+
+        .container {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 24px 18px 60px;
+        }
+
+        /* =============================
+           내비게이션
+           ============================= */
+        nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 22px;
+            background: var(--bg-nav);
+            border-bottom: 1px solid var(--border-strong);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+
+        .nav-left {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-on-nav);
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .nav-link {
+            color: rgba(253, 247, 236, 0.75);
+            font-size: 15px;
+            text-decoration: none;
+            padding: 4px 2px;
+            transition: color .15s, border-color .15s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .nav-link:hover {
+            color: var(--text-on-nav);
+        }
+
+        .nav-link.active {
+            color: var(--text-on-nav);
+            font-weight: 600;
+            border-bottom-color: var(--accent-strong);
+        }
+
+        /* =============================
+           페이지 헤더
+           ============================= */
+        .page-header {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 18px;
+        }
+
+        .page-title {
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .page-sub {
+            font-size: 13px;
+            color: var(--text-sub);
+        }
+
+        /* =============================
+           버튼 통일
+           ============================= */
+        .btn-primary,
+        .btn-ghost {
+            font-size: 13px;
+            padding: 7px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--btn-border);
+            background: var(--btn-bg);
+            color: var(--text-main);
+            cursor: pointer;
+            text-decoration: none;
+            transition: background .15s, border-color .15s, color .15s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fffaf3;
+        }
+
+        .btn-primary:hover {
+            background: #944e1f;
+            border-color: #944e1f;
+        }
+
+        .btn-ghost:hover {
+            background: var(--btn-hover-bg);
+            border-color: var(--btn-hover-border);
+        }
+
+        /* =============================
+           레이아웃 그리드
+           ============================= */
+        .section-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .section-half,
+        .section-full {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        @media (min-width: 1024px) {
+            .section-grid {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+            .section-half { flex: 1; }
+            .section-full { flex: 2; }
+        }
+
+        /* =============================
+           카드 스타일
+           ============================= */
+        .card {
+            background: var(--bg-elevated);
+            border-radius: 10px;
+            border: 1px solid var(--border-soft);
+            padding: 16px 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .card-meta {
+            font-size: 12px;
+            color: var(--text-sub);
+        }
+
+        /* 작은 필터·배지 스타일 */
+        .pill {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--border-soft);
+            color: var(--text-sub);
+            text-decoration: none;
+            background: #f7efe1;
+        }
+
+        .pill-active {
+            background: var(--accent-strong);
+            border-color: var(--accent-strong);
+            color: #4b320f;
+        }
+
+        /* =============================
+        모바일 전용 네비게이션 정리
+        ============================= */
+        @media (max-width: 768px) {
+            nav {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+                padding: 14px 18px;   /* 모바일에서 살짝 여유 있게 */
+            }
+
+            .nav-left {
+                font-size: 18px;
+            }
+
+            .nav-right {
+                width: 100%;
+                display: flex;
+                justify-content: space-between; /* 화면 폭에 맞게 골고루 배치 */
+                align-items: center;
+                flex-wrap: nowrap;
+                gap: 10px;
+                padding: 0 4px;                /* 양 끝에 추가 여백 */
+            }
+
+            .nav-link {
+                font-size: 15px;      /* 글자 좀 키우기 */
+                padding: 4px 6px;     /* 탭 터치 영역 확대 */
+                white-space: nowrap;  /* 줄바꿈 없이 일렬로 */
+            }
+        }
+
+    </style>
+
+    {% block head_style %}{% endblock %}
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-left">스텝로그</div>
+
+        <div class="nav-right">
+            <a href="{{ request.url_for('home') }}"
+               class="nav-link {% if request.url.path == '/' %}active{% endif %}">
+               대시보드
+            </a>
+
+            <a href="{{ request.url_for('diary_index') }}"
+               class="nav-link {% if request.url.path.startswith('/diary') %}active{% endif %}">
+               기록
+            </a>
+
+            <a href="{{ request.url_for('schedule_page') }}"
+               class="nav-link {% if request.url.path.startswith('/schedule') %}active{% endif %}">
+               일정
+            </a>
+
+            <a href="{{ request.url_for('todo_page') }}"
+               class="nav-link {% if request.url.path.startswith('/todos') %}active{% endif %}">
+               체크리스트
+            </a>
+
+            <a href="{{ request.url_for('stats_page') }}"
+               class="nav-link {% if request.url.path.startswith('/stats') %}active{% endif %}">
+               통계
+            </a>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+</body>
+</html>

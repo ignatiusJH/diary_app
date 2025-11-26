@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block title %}상태 / 통계 - 스텝로그{% endblock %}
+
+{% block head_style %}
+<style>
+  .stats-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .page-header .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #3b2f26;
+  }
+
+  .page-header {
+    font-size: 13px;
+    color: #8b6f55;
+  }
+
+  /* ===== 필터 블록 전체 ===== */
+  .stats-filter-block {
+    margin-top: 8px;
+    margin-bottom: 20px;
+  }
+
+  .stats-filter-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #3b2f26;
+    margin-bottom: 10px;
+  }
+
+  .stats-filter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .stats-filter-dates {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .stats-date-input {
+    min-width: 210px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid #d5c1a7;
+    background: #fbf3e7;
+    color: #3b2f26;
+    font-size: 13px;
+    box-sizing: border-box;
+    text-align: center;
+  }
+
+  .stats-date-input::-webkit-calendar-picker-indicator {
+    filter: invert(0.3);
+  }
+
+  .stats-tilde {
+    font-size: 14px;
+    color: #8b6f55;
+  }
+
+  .stats-filter-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .stats-filter-note {
+    font-size: 12px;
+    color: #8b6f55;
+    margin-top: 6px;
+  }
+
+  /* ===== 버튼 (오렌지 톤 통일) ===== */
+  .btn-stat-primary,
+  .btn-stat-ghost {
+    font-size: 13px;
+    padding: 7px 18px;
+    border-radius: 999px;
+    border: 1px solid #c86a21;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  .btn-stat-primary {
+    background: #c86a21;
+    color: #fff7ec;
+  }
+
+  .btn-stat-primary:hover {
+    background: #a85416;
+    border-color: #a85416;
+  }
+
+  .btn-stat-ghost {
+    background: transparent;
+    color: #a85416;
+    border-color: #e2d2b8;
+  }
+
+  .btn-stat-ghost:hover {
+    background: #f7ecde;
+    border-color: #d5c1a7;
+  }
+
+  /* ===== 섹션 라벨 ===== */
+  .section-label {
+    margin-top: 20px;
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #3b2f26;
+  }
+
+  /* ===== 카드 그리드 ===== */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+  }
+
+  .stat-card {
+    background: #f7ecde;
+    border-radius: 10px;
+    border: 1px solid #e2d2b8;
+    padding: 16px 18px;
+    color: #3b2f26;
+  }
+
+  .stat-head {
+    font-size: 13px;
+    color: #8b6f55;
+    margin-bottom: 4px;
+  }
+
+  .stat-value {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #3b2f26;
+  }
+
+  .stat-sub {
+    font-size: 12px;
+    color: #7a5b3a;
+    line-height: 1.5;
+  }
+
+  .stats-idea-card {
+    margin-top: 16px;
+  }
+
+  /* ===== 모바일 레이아웃 ===== */
+  @media (max-width: 768px) {
+    .stats-filter-form {
+      align-items: stretch;
+      margin-left: 0px;
+      margin-right: 30px;
+    }
+
+    .stats-filter-dates {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 4px;
+    }
+
+    .stats-date-input {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .stats-tilde {
+      text-align: center;
+      width: 100%;
+    }
+
+    .stats-filter-buttons {
+      justify-content: flex-start;
+      gap: 8px;
+    }
+  }
+
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stats-wrap">
+  <div class="page-header">
+    <div class="page-title">상태 / 통계</div>
+  </div>
+
+  <!-- 체크리스트 기간 필터 -->
+  <div class="stats-filter-block">
+    <div class="stats-filter-title">체크리스트 기간 필터</div>
+
+    <form method="get" action="/stats" class="stats-filter-form">
+      <div class="stats-filter-dates">
+        <input
+          type="date"
+          name="start"
+          value="{{ start or '' }}"
+          class="stats-date-input"
+        >
+        <span class="stats-tilde">~</span>
+        <input
+          type="date"
+          name="end"
+          value="{{ end or '' }}"
+          class="stats-date-input"
+        >
+      </div>
+
+      <div class="stats-filter-buttons">
+        <button type="submit" class="btn-stat-primary">기간 적용</button>
+        <a href="/stats" class="btn-stat-ghost">전체 기간으로 초기화</a>
+      </div>
+    </form>
+
+    <p class="stats-filter-note">
+      선택된 기간: {{ start }} ~ {{ end }}
+    </p>
+  </div>
+
+  <!-- 체크리스트 (전체 기간) -->
+  <div class="section-label">체크리스트 (전체 기간)</div>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-head">전체 항목 수</div>
+      <div class="stat-value">{{ overall_total }}</div>
+      <div class="stat-sub">
+        진행 중(pending) / 완료 / 포기를 모두 합한 개수입니다.
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-head">완료</div>
+      <div class="stat-value">{{ overall_done }}</div>
+      <div class="stat-sub">
+        완료율: {{ overall_done_rate }} %
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-head">포기</div>
+      <div class="stat-value">{{ overall_giveup }}</div>
+      <div class="stat-sub">
+        포기율: {{ overall_gaveup_rate }} %
+      </div>
+    </div>
+  </div>
+
+  <!-- 체크리스트 (선택 기간) -->
+  <div class="section-label">체크리스트 (선택 기간)</div>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-head">선택 기간 항목 수</div>
+      <div class="stat-value">{{ range_total }}</div>
+      <div class="stat-sub">
+        선택한 기간 안에서 생성된 전체 항목 수입니다.<br>
+        (진행 중 / 완료 / 포기 포함)
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-head">완료</div>
+      <div class="stat-value">{{ range_done }}</div>
+      <div class="stat-sub">
+        완료율: {{ range_done_rate }} %
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-head">포기</div>
+      <div class="stat-value">{{ range_giveup }}</div>
+      <div class="stat-sub">
+        포기율: {{ range_gaveup_rate }} %
+      </div>
+    </div>
+  </div>
+
+  <!-- 향후 확장 아이디어 -->
+  <div class="section-label">향후 확장 아이디어</div>
+  <div class="stat-card stats-idea-card">
+    <div class="stat-head">예: 월별 추이, 태그 기반 통계 등</div>
+    <div class="stat-sub">
+      - 월별 체크리스트 생성 / 완료 / 포기 추이<br>
+      - 태그(공부, 운동, 지출 등)별 비중<br>
+      - 주간 / 월간 달성률 트렌드<br>
+      이런 것들은 나중에 차트(Bar, Line 등)로 확장해서 붙일 수 있다.
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+{% block title %}오늘의 스텝로그{% endblock %}
+
+{% block head_style %}
+<style>
+  .dash-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .page-header .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #3b2f26;
+  }
+
+  /* 메인 영역 4:6 레이아웃 */
+  .dash-main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .dash-left,
+  .dash-right {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  @media (min-width: 1024px) {
+    .dash-main {
+      flex-direction: row;
+      align-items: flex-start;
+    }
+
+    .dash-left {
+      flex: 4;
+    }
+    .dash-right {
+      flex: 6;
+    }
+  }
+
+  /* ===== Desert 톤 카드 공통 ===== */
+  .card {
+    background: #f7ecde;
+    border-radius: 10px;
+    border: 1px solid #e2d2b8;
+    padding: 18px 22px;
+    color: #3b2f26;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+
+  .card-title {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .card-meta {
+    font-size: 12px;
+    color: #8b6f55;
+  }
+
+  /* ===== 달력 ===== */
+  .calendar-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .calendar-month {
+    font-size: 16px;
+    font-weight: 600;
+    color: #3b2f26;
+  }
+
+  .calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    table-layout: fixed;
+    color: #3b2f26;
+  }
+
+  .calendar-table th {
+    padding: 6px 0;
+    font-weight: 500;
+    color: #8b6f55;
+  }
+
+  .calendar-table td {
+    height: 32px;
+    text-align: center;
+    vertical-align: middle;
+    border-radius: 6px;
+    position: relative;
+  }
+
+  /* 이번달이 아닌 날짜 */
+  .cal-out {
+    color: #c3b29a;
+  }
+
+  /* 오늘 날짜 강조: 테두리 링 */
+  .cal-today {
+    border: 2px solid #e48b47;
+    border-radius: 10px;
+    box-sizing: border-box;
+    font-weight: 600;
+    color: #3b2f26;
+  }
+
+  /* 일정 있는 날 점 표시 */
+  .cal-has-schedule::after {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    background: #3da35a;
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* ===== 다가오는 일정 리스트 ===== */
+  .schedule-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+  }
+
+  .schedule-empty {
+    font-size: 13px;
+    color: #8b6f55;
+  }
+
+  .schedule-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: #fbf3e7;
+    border: 1px solid #d5c1a7;
+  }
+
+  .schedule-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .schedule-title {
+    font-size: 13px;
+    color: #3b2f26;
+  }
+
+  .schedule-date {
+    font-size: 11px;
+    color: #8b6f55;
+  }
+
+  .schedule-date-today {
+    font-size: 11px;
+    color: #c86a21;
+    font-weight: 600;
+  }
+
+  /* ===== 오늘 체크리스트 ===== */
+  .dash-todo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+  }
+
+  .dash-todo-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fbf3e7;
+    border: 1px solid #d5c1a7;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .dash-todo-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dash-todo-checkbox {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1px solid #d5c1a7;
+    background: #f7ecde;
+  }
+
+  .dash-todo-meta {
+    font-size: 11px;
+    color: #8b6f55;
+  }
+
+  .dash-todo-empty {
+    font-size: 13px;
+    color: #b89b79;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-wrap">
+  <div class="page-header">
+    <div class="page-title">오늘의 스텝로그</div>
+  </div>
+
+  <div class="dash-main">
+    <!-- 왼쪽 : 달력 + 다가오는 일정 -->
+    <div class="dash-left">
+      <!-- 달력 카드 -->
+      <section class="card">
+        <div class="calendar-head">
+          <div class="calendar-month">{{ year }}년 {{ month }}월</div>
+        </div>
+
+        <table class="calendar-table">
+          <thead>
+            <tr>
+              <th>일</th>
+              <th>월</th>
+              <th>화</th>
+              <th>수</th>
+              <th>목</th>
+              <th>금</th>
+              <th>토</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for week in weeks %}
+              <tr>
+                {% for day in week %}
+                  {% set classes = [] %}
+                  {% if not day.in_month %}{% set _ = classes.append('cal-out') %}{% endif %}
+                  {% if day.is_today %}{% set _ = classes.append('cal-today') %}{% endif %}
+                  {% if day.has_schedule %}{% set _ = classes.append('cal-has-schedule') %}{% endif %}
+                  <td class="{{ ' '.join(classes) }}">
+                    {{ day.day }}
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 다가오는 일정 카드 -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title">다가오는 일정</div>
+        </div>
+
+        {% if upcoming_items %}
+          <div class="schedule-list">
+            {% for item in upcoming_items %}
+              <div class="schedule-item">
+                <div class="schedule-main">
+                  <div class="schedule-title">
+                    {{ item.title }}
+                  </div>
+
+                  {% if item.date == today_str %}
+                    <div class="schedule-date-today">
+                      {{ item.date }} (오늘)
+                    </div>
+                  {% else %}
+                    <div class="schedule-date">{{ item.date }}</div>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="schedule-empty">앞으로 15일 안에 등록된 일정이 없습니다.</p>
+        {% endif %}
+      </section>
+    </div>
+
+    <!-- 오른쪽 : 오늘 체크리스트 -->
+    <div class="dash-right">
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title">오늘 체크리스트</div>
+          <div class="card-meta">
+            진행 중 {{ today_todos|length }}개
+          </div>
+        </div>
+
+        {% if today_todos %}
+          <div class="dash-todo-list">
+            {% for t in today_todos %}
+              <div class="dash-todo-item">
+                <div class="dash-todo-title-row">
+                  <div class="dash-todo-checkbox"></div>
+                  <div>{{ t.title }}</div>
+                </div>
+                <div class="dash-todo-meta">
+                  생성일: {{ t.date }}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="dash-todo-empty">오늘 진행 중인 체크리스트가 없습니다.</p>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

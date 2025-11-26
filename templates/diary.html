@@ -1,0 +1,748 @@
+{% extends "base.html" %}
+{% block title %}기록 - 스텝로그{% endblock %}
+
+{% block head_style %}
+<style>
+  .diary-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .page-header .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #3b2f26;
+  }
+
+  .section-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  @media (min-width: 1024px) {
+    .section-grid {
+      flex-direction: row;
+      align-items: flex-start;
+    }
+    .section-left {
+      flex: 4;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .section-right {
+      flex: 6;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+  }
+
+  .section-left,
+  .section-right {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ===== Desert 톤 카드 공통 ===== */
+  .card {
+    background: #f7ecde;
+    border-radius: 10px;
+    border: 1px solid #e2d2b8;
+    padding: 20px 24px;
+    color: #3b2f26;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+
+  .card-title {
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .card-meta {
+    font-size: 12px;
+    color: #8b6f55;
+  }
+
+  /* ===== 버튼 ===== */
+
+  .btn-primary,
+  .btn-danger,
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    border: 1px solid transparent;
+    text-decoration: none;
+  }
+
+  /* 저장 버튼 (오렌지) */
+  .btn-primary {
+    background: #c86a21;
+    border-color: #c86a21;
+    color: #fff7ec;
+  }
+
+  .btn-primary:hover {
+    background: #a85416;
+    border-color: #a85416;
+  }
+
+  /* 삭제 버튼 (빨간색) */
+  .btn-danger {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #fff7ec;
+  }
+
+  .btn-danger:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+  }
+
+  /* Ghost 버튼 (새 기록 입력 등) */
+  .btn-ghost {
+    background: transparent;
+    border-color: #e2d2b8;
+    color: #8b6f55;
+    padding-inline: 10px;
+    font-size: 13px;
+  }
+
+  .btn-ghost:hover {
+    background: #fbf3e7;
+  }
+
+  /* ===== 검색 카드 ===== */
+  .filter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .filter-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .filter-label {
+    font-size: 13px;
+    color: #8b6f55;
+  }
+
+  .filter-select,
+  .filter-input {
+    width: 100%;
+    padding: 7px 9px;
+    border-radius: 6px;
+    border: 1px solid #d5c1a7;
+    background: #fbf3e7;
+    color: #3b2f26;
+    font-size: 13px;
+    box-sizing: border-box;
+  }
+
+  .filter-submit {
+    margin-top: 4px;
+  }
+
+  /* 리스트 / 갤러리 토글 */
+  .view-toggle {
+    display: inline-flex;
+    border-radius: 999px;
+    background: #fbf3e7;
+    padding: 2px;
+    gap: 2px;
+    border: 1px solid #d5c1a7;
+  }
+
+  .view-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 999px;
+    border: none;
+    text-decoration: none;
+    color: #8b6f55;
+    background: transparent;
+  }
+
+  .view-btn.active {
+    background: #c86a21;
+    color: #fff7ec;
+  }
+
+  /* ===== 목록 ===== */
+  .entry-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .entry-item {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fbf3e7;
+    border: 1px solid #d5c1a7;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .entry-item:hover {
+    border-color: #d5c1a7;
+    background: #f2e2cf;
+  }
+
+  .entry-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #3b2f26;
+  }
+
+  .entry-meta {
+    margin-top: 2px;
+    font-size: 11px;
+    color: #8b6f55;
+  }
+
+  .entry-snippet {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #8b6f55;
+    max-height: 34px;
+    overflow: hidden;
+  }
+
+  .entry-tags {
+    margin-top: 4px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .tag-pill {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: #f8efe0;
+    color: #3b2f26;
+  }
+
+  .entry-empty {
+    font-size: 13px;
+    color: #8b6f55;
+  }
+
+  /* 갤러리 뷰 */
+  .entry-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+
+  .gallery-card {
+    border-radius: 10px;
+    border: 1px solid #d5c1a7;
+    background: #fbf3e7;
+    padding: 8px 8px 10px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .gallery-card:hover {
+    background: #f2e2cf;
+  }
+
+  .gallery-thumb {
+    width: 100%;
+    height: 120px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #e1d3c1;
+    margin-bottom: 6px;
+  }
+
+  .gallery-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .gallery-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: #3b2f26;
+    margin-bottom: 2px;
+  }
+
+  .gallery-date {
+    font-size: 11px;
+    color: #8b6f55;
+  }
+
+  /* ===== 에디터 ===== */
+  .editor-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .editor-row label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 13px;
+    color: #8b6f55;
+  }
+
+  .editor-input,
+  .editor-textarea,
+  .editor-file-input {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 6px;
+    border: 1px solid #d5c1a7;
+    background: #fbf3e7;
+    color: #3b2f26;
+    font-size: 14px;
+    box-sizing: border-box;
+  }
+
+  /* 파일 선택 버튼만 커스텀 */
+  .editor-file-input::file-selector-button {
+    padding: 6px 12px;
+    margin-right: 8px;
+    border-radius: 999px;
+    border: 1px solid #c86a21;
+    background: #c86a21;
+    color: #fff7ec;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .editor-file-input::file-selector-button:hover {
+    background: #a85416;
+    border-color: #a85416;
+  }
+
+  .editor-textarea {
+    min-height: 480px;
+    resize: vertical;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .editor-bottom {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-top: 4px;
+    gap: 8px;
+  }
+
+  .editor-buttons {
+    display: flex;
+    gap: 8px;
+  }
+
+  .editor-mode-badge {
+    font-size: 11px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: #f8efe0;
+    color: #8b6f55;
+  }
+
+  /* 페이지네이션 */
+  .pagination {
+    margin-top: 10px;
+    font-size: 12px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .page-link {
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #d5c1a7;
+    text-decoration: none;
+    color: #8b6f55;
+    background: transparent;
+  }
+
+  .page-link.active {
+    background: #c86a21;
+    border-color: #c86a21;
+    color: #fff7ec;
+  }
+
+  /* 모바일에서 기록 작성 폼을 위로 올리기 */
+  @media (max-width: 768px) {
+    .section-grid {
+      flex-direction: column;
+    }
+
+    .section-left {
+      order: 2;  /* 목록 카드 아래로 */
+    }
+
+    .section-right {
+      order: 1;  /* 작성 폼 위로 */
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="diary-wrap">
+  <div class="page-header">
+    <div class="page-title">기록</div>
+  </div>
+
+  <div class="section-grid">
+    <!-- 왼쪽: 검색 + 목록 -->
+    <div class="section-left">
+      <!-- 검색 카드 -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title">검색</div>
+        </div>
+
+        <form method="get" class="filter-form">
+          <div class="filter-row">
+            <div class="filter-label">기간</div>
+            <select name="range" class="filter-select">
+              <option value="all"       {% if current_range == "all" %}selected{% endif %}>전체</option>
+              <option value="today"     {% if current_range == "today" %}selected{% endif %}>오늘</option>
+              <option value="yesterday" {% if current_range == "yesterday" %}selected{% endif %}>어제</option>
+              <option value="week"      {% if current_range == "week" %}selected{% endif %}>이번 주</option>
+              <option value="month"     {% if current_range == "month" %}selected{% endif %}>이번 달</option>
+              <option value="custom"    {% if current_range == "custom" %}selected{% endif %}>지정일</option>
+            </select>
+          </div>
+
+          <div class="filter-row">
+            <div class="filter-label">지정일</div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <input type="date" name="start" class="filter-input" value="{{ start or '' }}">
+              <span style="font-size:12px;color:#8b6f55;">~</span>
+              <input type="date" name="end" class="filter-input" value="{{ end or '' }}">
+            </div>
+          </div>
+
+          <div class="filter-row">
+            <div class="filter-label">태그</div>
+            <input
+              type="text"
+              name="tag"
+              class="filter-input"
+              placeholder="예: fastapi, 운동"
+              value="{{ tag or '' }}"
+            >
+          </div>
+
+          <input type="hidden" name="view" value="{{ view }}">
+
+          <div class="filter-row filter-submit">
+            <button class="btn-primary" type="submit">검색</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- 목록 카드 -->
+      <section class="card">
+        <div class="card-header">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="card-title">목록</div>
+            <div class="view-toggle">
+              <a
+                class="view-btn {% if view == 'list' %}active{% endif %}"
+                href="{{ url_for('diary_index') }}?view=list{% if current_range %}&range={{ current_range }}{% endif %}{% if tag %}&tag={{ tag }}{% endif %}{% if start %}&start={{ start }}{% endif %}{% if end %}&end={{ end }}{% endif %}"
+              >
+                리스트
+              </a>
+              <a
+                class="view-btn {% if view == 'gallery' %}active{% endif %}"
+                href="{{ url_for('diary_index') }}?view=gallery{% if current_range %}&range={{ current_range }}{% endif %}{% if tag %}&tag={{ tag }}{% endif %}{% if start %}&start={{ start }}{% endif %}{% if end %}&end={{ end }}{% endif %}"
+              >
+                갤러리
+              </a>
+            </div>
+          </div>
+
+          <div class="card-meta">
+            {{ page }} / {{ total_pages }} 페이지
+          </div>
+        </div>
+
+        {% if entries %}
+          {% if view == "gallery" %}
+            <div class="entry-gallery">
+              {% for e in entries %}
+                <button
+                  type="button"
+                  class="gallery-card"
+                  data-entry-id="{{ e.id }}"
+                >
+                  <div class="gallery-thumb">
+                    {% if e.image_url %}
+                      <img src="{{ e.image_url }}" alt="thumbnail">
+                    {% else %}
+                      <img src="/static/images/diary_default.jpg" alt="default">
+                    {% endif %}
+                  </div>
+                  <div class="gallery-title">{{ e.title }}</div>
+                  <div class="gallery-date">{{ e.created_at }}</div>
+                </button>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="entry-list">
+              {% for e in entries %}
+                <button
+                  type="button"
+                  class="entry-item"
+                  data-entry-id="{{ e.id }}"
+                >
+                  <div class="entry-title">{{ e.title }}</div>
+                  <div class="entry-meta">{{ e.created_at }}</div>
+                  <div class="entry-snippet">
+                    {{ (e.content or "") | replace("\n", " ") | truncate(90, True, "...") }}
+                  </div>
+                  {% if e.tags %}
+                    <div class="entry-tags">
+                      {% for t in e.tags %}
+                        <span class="tag-pill">#{{ t }}</span>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </button>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          {% if total_pages > 1 %}
+            <div class="pagination">
+              {% for p in range(1, total_pages + 1) %}
+                <a
+                  class="page-link {% if p == page %}active{% endif %}"
+                  href="{{ url_for('diary_index') }}?page={{ p }}&view={{ view }}{% if current_range %}&range={{ current_range }}{% endif %}{% if tag %}&tag={{ tag }}{% endif %}{% if start %}&start={{ start }}{% endif %}{% if end %}&end={{ end }}{% endif %}"
+                >
+                  {{ p }}
+                </a>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% else %}
+          <p class="entry-empty">아직 기록이 없습니다.</p>
+        {% endif %}
+      </section>
+    </div>
+
+    <!-- 오른쪽: 기록 작성 / 수정 -->
+    <div class="section-right">
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title" id="editor-title">기록 작성</div>
+          <div class="card-meta">
+            <span class="editor-mode-badge" id="editor-mode-badge">새 기록</span>
+            <button
+              type="button"
+              class="btn-ghost"
+              id="new-entry-button"
+              style="margin-left:8px;"
+            >
+              새 기록 입력
+            </button>
+          </div>
+        </div>
+
+        <form
+          id="editor-form"
+          class="editor-form"
+          method="post"
+          action="/save"
+          enctype="multipart/form-data"
+        >
+          <input type="hidden" id="editor-entry-id">
+          <input type="hidden" name="view" value="{{ view }}">
+          <input type="hidden" name="redirect_url" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+
+          <div class="editor-row">
+            <label for="title">제목</label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              class="editor-input"
+              required
+            >
+          </div>
+
+          <div class="editor-row">
+            <label for="content">내용</label>
+            <textarea
+              id="content"
+              name="content"
+              class="editor-textarea"
+              required
+            ></textarea>
+          </div>
+
+          <div class="editor-row">
+            <label for="tags">태그 (쉼표로 구분)</label>
+            <input
+              type="text"
+              id="tags"
+              name="tags"
+              class="editor-input"
+              placeholder="예: fastapi, 운동"
+            >
+          </div>
+
+          <div class="editor-row">
+            <label for="photo">사진 (선택)</label>
+            <input
+              type="file"
+              id="photo"
+              name="photo"
+              class="editor-file-input"
+              accept="image/*"
+            >
+          </div>
+
+          <div class="editor-bottom">
+            <div class="editor-buttons">
+              <button
+                type="submit"
+                class="btn-primary"
+                id="save-button"
+              >
+                저장
+              </button>
+              <button
+                type="button"
+                class="btn-danger"
+                id="delete-button"
+                style="display:none;"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <!-- 삭제용 숨김 폼 -->
+        <form id="delete-form" method="post" style="display:none;">
+          <input type="hidden" name="view" value="{{ view }}">
+          <input type="hidden" name="redirect_url" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
+        </form>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const listItems      = document.querySelectorAll("[data-entry-id]");
+    const editorTitle    = document.getElementById("editor-title");
+    const modeBadge      = document.getElementById("editor-mode-badge");
+    const entryIdHidden  = document.getElementById("editor-entry-id");
+    const titleInput     = document.getElementById("title");
+    const contentInput   = document.getElementById("content");
+    const tagsInput      = document.getElementById("tags");
+    const photoInput     = document.getElementById("photo");
+    const editorForm     = document.getElementById("editor-form");
+    const deleteForm     = document.getElementById("delete-form");
+    const deleteButton   = document.getElementById("delete-button");
+    const newEntryButton = document.getElementById("new-entry-button");
+
+    let currentId = null;
+
+    function setCreateMode() {
+      currentId = null;
+      entryIdHidden.value = "";
+      editorTitle.textContent = "기록 작성";
+      modeBadge.textContent = "새 기록";
+      titleInput.value = "";
+      contentInput.value = "";
+      tagsInput.value = "";
+      if (photoInput) {
+        photoInput.value = "";
+      }
+      editorForm.action = "/save";
+      deleteButton.style.display = "none";
+    }
+
+    function setEditMode(entry) {
+      currentId = entry.id;
+      entryIdHidden.value = entry.id;
+      editorTitle.textContent = "기록 수정";
+      modeBadge.textContent = "수정 모드";
+      titleInput.value = entry.title || "";
+      contentInput.value = (entry.content || "").replace(/\r\n/g, "\n");
+      tagsInput.value = (entry.tags || []).join(", ");
+      editorForm.action = "/entry/" + entry.id + "/edit";
+      deleteForm.action  = "/entry/" + entry.id + "/delete";
+      deleteButton.style.display = "inline-flex";
+    }
+
+    listItems.forEach(function (el) {
+      el.addEventListener("click", function () {
+        const id = el.dataset.entryId;
+        fetch("/api/entry/" + id)
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            setEditMode(data);
+          })
+          .catch(function (err) {
+            console.error(err);
+            alert("기록을 불러오지 못했습니다.");
+          });
+      });
+    });
+
+    if (newEntryButton) {
+      newEntryButton.addEventListener("click", function () {
+        setCreateMode();
+      });
+    }
+
+    editorForm.addEventListener("submit", function (e) {
+      const message = currentId
+        ? "이대로 수정할까요?"
+        : "새 기록을 저장할까요?";
+      if (!confirm(message)) {
+        e.preventDefault();
+      }
+    });
+
+    deleteButton.addEventListener("click", function () {
+      if (!currentId) return;
+      if (!confirm("정말 삭제할까요?")) return;
+      deleteForm.submit();
+    });
+
+    setCreateMode();
+  })();
+</script>
+{% endblock %}
