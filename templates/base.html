@@ -255,6 +255,23 @@
 
     </style>
 
+    <!-- PWA manifest -->
+    <!-- PWA manifest -->
+    <link rel="manifest" href="/static/manifest.webmanifest">
+
+    <!-- 주소줄 색상 (안드로이드 크롬) -->
+    <meta name="theme-color" content="#c86a21">
+
+    <!-- iOS - 홈 화면에서 열릴 때 앱처럼 보이기 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="STEPLOG">
+
+    <!-- iOS용 아이콘 (나중에 실제 파일 만들면 됨) -->
+    <link rel="manifest" href="/static/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/static/icon-512.png">
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+
     {% block head_style %}{% endblock %}
     {% block extra_head %}{% endblock %}
 </head>

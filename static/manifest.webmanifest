@@ -1,0 +1,20 @@
+{
+  "name": "STEPLOG",
+  "short_name": "STEPLOG",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbf3e7",
+  "theme_color": "#c86a21",
+  "icons": [
+    {
+      "src": "/static/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
