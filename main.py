@@ -2,8 +2,8 @@
 from datetime import date, timedelta
 import calendar
 
-from fastapi import FastAPI, Request, Depends
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from deps import (
@@ -13,19 +13,21 @@ from deps import (
     load_todos,
     schedule_sort_key,
     templates,
-    owner_only,   # ✅ 추가
-    require_auth,
+    owner_only,   # ✅ 주인 인증
+    require_auth, # ✅ 전역 Basic 인증
+    DB_PATH,      # ✅ SQLite 파일 경로
 )
 from routers import (
     diary_router,
     schedule_router,
     todos_router,
     stats_router,
+    backup_router,   # 있어도 됨 (나중에 라우터 정리할 때 쓸 수 있음)
 )
 
 # 여기에서 전체 보호를 한 번에 건다
 app = FastAPI(
-    dependencies=[Depends(require_auth)]  # ✅ 모든 엔드포인트에 인증 강제
+    dependencies=[Depends(require_auth)]  # ✅ 모든 엔드포인트에 기본 인증 강제
 )
 
 # 정적 파일 mount
@@ -37,6 +39,32 @@ app.include_router(diary_router)
 app.include_router(schedule_router)
 app.include_router(todos_router)
 app.include_router(stats_router)
+app.include_router(backup_router)
+
+
+# =========================
+# DB 백업 엔드포인트 (직접 추가)
+# =========================
+@app.get("/backup/db", dependencies=[Depends(owner_only)])
+async def backup_db():
+    """
+    steplog.db 파일을 그대로 다운로드해 주는 백업 엔드포인트.
+    통계 화면 오른쪽 아래 버튼에서 이 URL을 호출한다.
+    """
+    db_path = DB_FILE
+
+    if not db_path.exists():
+        raise HTTPException(status_code=404, detail="DB 파일을 찾을 수 없습니다.")
+
+    from datetime import datetime
+    ts = datetime.now().strftime("%Y%m%d_%H%M")
+    filename = f"steplog_backup_{ts}.db"
+
+    return FileResponse(
+        path=str(db_path),
+        media_type="application/octet-stream",
+        filename=filename,
+    )
 
 
 # 메인 대시보드 ("/")

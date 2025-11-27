@@ -164,6 +164,14 @@
     margin-top: 16px;
   }
 
+  /* ===== 백업 버튼 (오른쪽 하단 고정) ===== */
+  .backup-fab {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 50;
+  }
+
   /* ===== 모바일 레이아웃 ===== */
   @media (max-width: 768px) {
     .stats-filter-form {
@@ -193,8 +201,6 @@
       gap: 8px;
     }
   }
-
-
 </style>
 {% endblock %}
 
@@ -305,4 +311,9 @@
     </div>
   </div>
 </div>
+
+<!-- 오른쪽 아래 고정 백업 버튼 -->
+<a href="/backup/db" class="btn-stat-primary backup-fab">
+  DB 백업 다운로드
+</a>
 {% endblock %}
