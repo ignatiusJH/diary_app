@@ -23,6 +23,7 @@ from routers import (
     todos_router,
     stats_router,
     backup_router,   # 있어도 됨 (나중에 라우터 정리할 때 쓸 수 있음)
+    restore_router,
 )
 
 # 여기에서 전체 보호를 한 번에 건다
@@ -40,6 +41,8 @@ app.include_router(schedule_router)
 app.include_router(todos_router)
 app.include_router(stats_router)
 app.include_router(backup_router)
+app.include_router(restore_router)
+
 
 
 # =========================
