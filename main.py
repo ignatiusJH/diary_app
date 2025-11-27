@@ -14,6 +14,7 @@ from deps import (
     schedule_sort_key,
     templates,
     owner_only,   # ✅ 추가
+    require_auth,
 )
 from routers import (
     diary_router,
@@ -24,7 +25,7 @@ from routers import (
 
 # 여기에서 전체 보호를 한 번에 건다
 app = FastAPI(
-    dependencies=[Depends(owner_only)]  # ✅ 모든 엔드포인트에 인증 강제
+    dependencies=[Depends(require_auth)]  # ✅ 모든 엔드포인트에 인증 강제
 )
 
 # 정적 파일 mount

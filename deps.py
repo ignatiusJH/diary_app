@@ -9,11 +9,12 @@ import os
 import secrets
 from typing import List
 
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, status
 from fastapi.templating import Jinja2Templates
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from starlette.status import HTTP_401_UNAUTHORIZED
 from pydantic import BaseModel
+from dotenv import load_dotenv
 
 # =========================
 # 공통 경로 / 상수
@@ -37,6 +38,40 @@ HISTORY_ITEMS_PER_PAGE = 20  # 체크리스트 완료/포기 히스토리 1페�
 # JSON 파일 경로
 SCHEDULE_FILE = DATA_DIR / "schedule.json"   # 일정
 TODOS_FILE    = DATA_DIR / "todos.json"      # 체크리스트
+
+# .env 로드
+load_dotenv()
+
+# HTTP Basic 설정
+security = HTTPBasic()
+
+
+def require_auth(credentials: HTTPBasicCredentials = Depends(security)):
+    """
+    전체 앱에 공통으로 걸 인증 의존성.
+    브라우저에서 아이디/비번을 물어보는 Basic Auth 방식.
+    """
+    correct_user = os.getenv("DIARY_USER")
+    correct_pass = os.getenv("DIARY_PASSWORD")
+
+    # 환경변수 안 넣으면 개발 중에 헷갈릴 수 있으니까 예외 던져버리기
+    if not correct_user or not correct_pass:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Auth env vars (DIARY_USER / DIARY_PASSWORD) are not set.",
+        )
+
+    if credentials.username != correct_user or credentials.password != correct_pass:
+        # 잘못된 인증 → 401 + WWW-Authenticate 헤더
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    # 여기까지 통과하면 인증 성공
+    return credentials.username
+
 
 # Jinja 템플릿
 templates = Jinja2Templates(directory="templates")
@@ -259,8 +294,8 @@ def owner_only(credentials: HTTPBasicCredentials = Depends(security)):
       STEPLOG_USER  : 아이디 (기본값: owner)
       STEPLOG_PASS  : 비밀번호 (기본값: change-me)
     """
-    username = os.getenv("STEPLOG_USER", "owner")
-    password = os.getenv("STEPLOG_PASS", "change-me")
+    username = os.getenv("STEPLOG_USER", "squapple")
+    password = os.getenv("STEPLOG_PASS", "september18!&")
 
     ok_user = secrets.compare_digest(credentials.username, username)
     ok_pass = secrets.compare_digest(credentials.password, password)
