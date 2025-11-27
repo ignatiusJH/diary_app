@@ -7,6 +7,7 @@ import math
 import calendar
 import os
 import secrets
+import sqlite3
 from typing import List
 
 from fastapi import HTTPException, Depends, status
@@ -23,19 +24,22 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 
 UPLOAD_DIR = BASE_DIR / "uploads"   # 사진 저장
-DATA_DIR   = BASE_DIR / "data"      # JSON 저장
+DATA_DIR   = BASE_DIR / "data"      # 데이터 저장
 STATIC_DIR = BASE_DIR / "static"    # 정적 파일 (이미지 등)
 
 UPLOAD_DIR.mkdir(exist_ok=True)
 DATA_DIR.mkdir(exist_ok=True)
 STATIC_DIR.mkdir(exist_ok=True)
 
+# SQLite DB 경로
+DB_PATH = DATA_DIR / "steplog.db"
+
 # 기록 목록 페이지당 개수
 ITEMS_PER_PAGE_LIST    = 10
 ITEMS_PER_PAGE_GALLERY = 50
 HISTORY_ITEMS_PER_PAGE = 20  # 체크리스트 완료/포기 히스토리 1페이지당 개수
 
-# JSON 파일 경로
+# JSON 파일 경로 (이제 사용 안 하지만, 혹시 모를 마이그레이션용으로 남겨둠)
 SCHEDULE_FILE = DATA_DIR / "schedule.json"   # 일정
 TODOS_FILE    = DATA_DIR / "todos.json"      # 체크리스트
 
@@ -45,6 +49,77 @@ load_dotenv()
 # HTTP Basic 설정
 security = HTTPBasic()
 
+# Jinja 템플릿
+templates = Jinja2Templates(directory="templates")
+
+
+# =========================
+# DB 유틸
+# =========================
+
+def get_connection() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db() -> None:
+    """앱 시작 시 한 번만 호출: 필요한 테이블 생성."""
+    with get_connection() as conn:
+        cur = conn.cursor()
+
+        # 일기 테이블
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS diary_entries (
+                id         TEXT PRIMARY KEY,
+                title      TEXT NOT NULL,
+                content    TEXT NOT NULL,
+                image_url  TEXT,
+                created_at TEXT,
+                updated_at TEXT,
+                tags       TEXT   -- JSON 문자열
+            )
+            """
+        )
+
+        # 일정 테이블
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS schedule_items (
+                id       TEXT PRIMARY KEY,
+                date     TEXT NOT NULL,   -- YYYY-MM-DD
+                title    TEXT NOT NULL,
+                memo     TEXT,
+                time     TEXT,            -- HH:MM
+                time_str TEXT,
+                place    TEXT
+            )
+            """
+        )
+
+        # 체크리스트 테이블
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS todos (
+                id     TEXT PRIMARY KEY,
+                date   TEXT NOT NULL,   -- YYYY-MM-DD
+                title  TEXT NOT NULL,
+                status TEXT NOT NULL    -- pending / done / giveup
+            )
+            """
+        )
+
+        conn.commit()
+
+
+# 모듈 임포트 시 DB 초기화
+init_db()
+
+
+# =========================
+# 인증
+# =========================
 
 def require_auth(credentials: HTTPBasicCredentials = Depends(security)):
     """
@@ -73,17 +148,13 @@ def require_auth(credentials: HTTPBasicCredentials = Depends(security)):
     return credentials.username
 
 
-# Jinja 템플릿
-templates = Jinja2Templates(directory="templates")
-
-
 # =========================
 # 공통 유틸 (기록)
 # =========================
 
 def _normalize_entry(entry: dict) -> dict:
     """
-    기록(JSON) 형식을 통일하는 함수
+    기록 형식을 통일하는 함수
     - 줄바꿈 통일
     - 태그를 항상 리스트로 맞춰줌
     """
@@ -106,34 +177,110 @@ def _parse_tags(text: str) -> list[str]:
     return [t.strip() for t in text.split(",") if t.strip()]
 
 
+# =========================
+# 일기(기록) 관련: SQLite 버전
+# =========================
+
+def _decode_tags(tags_raw: str | None) -> list[str]:
+    if not tags_raw:
+        return []
+    try:
+        return json.loads(tags_raw)
+    except json.JSONDecodeError:
+        # 예전 형식이거나 그냥 문자열일 경우
+        return _parse_tags(tags_raw)
+
+
 def load_entry(entry_id: str) -> dict:
-    """단일 기록 1개 로드"""
-    path = DATA_DIR / f"{entry_id}.json"
-    if not path.exists():
+    """단일 기록 1개 로드 (SQLite)"""
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            SELECT id, title, content, image_url, created_at, updated_at, tags
+            FROM diary_entries
+            WHERE id = ?
+            """,
+            (entry_id,),
+        )
+        row = cur.fetchone()
+
+    if row is None:
         raise HTTPException(status_code=404, detail="Entry not found")
 
-    with path.open(encoding="utf-8") as f:
-        data = json.load(f)
-
-    return _normalize_entry(data)
+    entry = dict(row)
+    entry["tags"] = _decode_tags(entry.get("tags"))
+    entry = _normalize_entry(entry)
+    return entry
 
 
 def save_entry_json(entry_id: str, entry: dict) -> None:
-    """단일 기록 1개 저장"""
-    path = DATA_DIR / f"{entry_id}.json"
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(entry, f, ensure_ascii=False, indent=2)
+    """
+    단일 기록 1개 저장 (이전 함수 이름 유지)
+    - 없으면 INSERT
+    - 있으면 UPDATE
+    """
+    entry = _normalize_entry(entry.copy())
+    tags = entry.get("tags") or []
+    tags_json = json.dumps(tags, ensure_ascii=False)
+
+    title = entry.get("title", "")
+    content = entry.get("content", "")
+    image_url = entry.get("image_url")
+    created_at = entry.get("created_at")
+    updated_at = entry.get("updated_at")
+
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO diary_entries (id, title, content, image_url, created_at, updated_at, tags)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                title      = excluded.title,
+                content    = excluded.content,
+                image_url  = excluded.image_url,
+                created_at = excluded.created_at,
+                updated_at = excluded.updated_at,
+                tags       = excluded.tags
+            """,
+            (entry_id, title, content, image_url, created_at, updated_at, tags_json),
+        )
+        conn.commit()
 
 
 def delete_entry_json(entry_id: str) -> None:
-    """단일 기록 1개 삭제 (파일 삭제)"""
-    path = DATA_DIR / f"{entry_id}.json"
-    if path.exists():
-        path.unlink()
+    """단일 기록 1개 삭제 (SQLite)"""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM diary_entries WHERE id = ?", (entry_id,))
+        conn.commit()
+
+
+def load_all_entries() -> list[dict]:
+    """
+    전체 기록 목록 로드 (최신순).
+    - diary_index 에서 목록 + 검색용으로 사용.
+    """
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            SELECT id, title, content, image_url, created_at, updated_at, tags
+            FROM diary_entries
+            ORDER BY created_at DESC, id DESC
+            """
+        )
+        rows = cur.fetchall()
+
+    entries: list[dict] = []
+    for row in rows:
+        e = dict(row)
+        e["id"] = e["id"]
+        e["tags"] = _decode_tags(e.get("tags"))
+        entries.append(_normalize_entry(e))
+
+    return entries
 
 
 # =========================
-# 일정 관련
+# 일정 관련 (SQLite 버전)
 # =========================
 
 class ScheduleItem(BaseModel):
@@ -144,44 +291,6 @@ class ScheduleItem(BaseModel):
     time: str | None = None      # "HH:MM" (선택)
     time_str: str | None = None  # 문자열용 (선택)
     place: str | None = None     # 장소 (선택)
-
-
-def load_schedule() -> List[ScheduleItem]:
-    """일정 전체 로드"""
-    if not SCHEDULE_FILE.exists():
-        return []
-
-    with SCHEDULE_FILE.open("r", encoding="utf-8") as f:
-        try:
-            raw = json.load(f)
-        except json.JSONDecodeError:
-            raw = []
-
-    items: list[ScheduleItem] = []
-
-    for item in raw:
-        time_val = item.get("time")
-        time_str_val = item.get("time_str")
-
-        if time_val and not time_str_val:
-            time_str_val = time_val
-        if time_str_val and not time_val:
-            time_val = time_str_val
-
-        items.append(
-            ScheduleItem(
-                id=item.get("id", str(uuid.uuid4())),
-                date=item.get("date", date.today().isoformat()),
-                title=item.get("title", ""),
-                memo=item.get("memo"),
-                time=time_val,
-                time_str=time_str_val,
-                place=item.get("place"),
-            )
-        )
-
-    save_schedule(items)
-    return items
 
 
 def schedule_sort_key(item: ScheduleItem):
@@ -207,15 +316,65 @@ def schedule_sort_key(item: ScheduleItem):
     return (d, has_time, h, m)
 
 
+def load_schedule() -> List[ScheduleItem]:
+    """일정 전체 로드 (SQLite)"""
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            SELECT id, date, title, memo, time, time_str, place
+            FROM schedule_items
+            """
+        )
+        rows = cur.fetchall()
+
+    items: list[ScheduleItem] = []
+    for row in rows:
+        item = ScheduleItem(
+            id=row["id"],
+            date=row["date"],
+            title=row["title"],
+            memo=row["memo"],
+            time=row["time"],
+            time_str=row["time_str"],
+            place=row["place"],
+        )
+        # time / time_str 보정 (예전 JSON 로직 유지)
+        if item.time and not item.time_str:
+            item.time_str = item.time
+        if item.time_str and not item.time:
+            item.time = item.time_str
+        items.append(item)
+
+    items.sort(key=schedule_sort_key)
+    return items
+
+
 def save_schedule(items: List[ScheduleItem]) -> None:
-    """일정 전체 저장"""
-    data = [item.dict() for item in items]
-    with SCHEDULE_FILE.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    """일정 전체 저장 (SQLite, 전체 재저장 방식)"""
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM schedule_items")
+        for item in items:
+            cur.execute(
+                """
+                INSERT INTO schedule_items (id, date, title, memo, time, time_str, place)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    item.id,
+                    item.date,
+                    item.title,
+                    item.memo,
+                    item.time,
+                    item.time_str,
+                    item.place,
+                ),
+            )
+        conn.commit()
 
 
 # =========================
-# 체크리스트 관련
+# 체크리스트 관련 (SQLite 버전)
 # =========================
 # status 값은 항상 이 셋만 사용:
 # - "pending" : 진행 중
@@ -230,61 +389,51 @@ class TodoItem(BaseModel):
 
 
 def load_todos() -> List[TodoItem]:
-    """
-    todos.json 을 읽어서 TodoItem 리스트로 반환.
-    옛날 데이터(done: bool)도 자동으로 status 형식으로 변환한다.
-    """
-    if not TODOS_FILE.exists():
-        return []
+    """SQLite 에서 TodoItem 리스트 로드."""
+    with get_connection() as conn:
+        cur = conn.execute(
+            """
+            SELECT id, date, title, status
+            FROM todos
+            """
+        )
+        rows = cur.fetchall()
 
-    with TODOS_FILE.open("r", encoding="utf-8") as f:
-        try:
-            raw = json.load(f)
-        except json.JSONDecodeError:
-            raw = []
-
-    normalized: list[TodoItem] = []
-
-    for item in raw:
-        todo_id = item.get("id", str(uuid.uuid4()))
-        date_str = item.get("date", date.today().isoformat())
-        title = item.get("title", "")
-
-        if "status" in item:
-            status = item["status"]
-        else:
-            done_flag = item.get("done", False)
-            status = "done" if done_flag else "pending"
-
+    items: list[TodoItem] = []
+    for row in rows:
+        status = row["status"]
         if status not in ("pending", "done", "giveup"):
             status = "pending"
-
-        normalized.append(
+        items.append(
             TodoItem(
-                id=todo_id,
-                date=date_str,
-                title=title,
+                id=row["id"],
+                date=row["date"],
+                title=row["title"],
                 status=status,
             )
         )
-
-    save_todos(normalized)
-    return normalized
+    return items
 
 
 def save_todos(items: List[TodoItem]) -> None:
-    """TodoItem 리스트를 todos.json 에 저장."""
-    data = [item.dict() for item in items]
-    with TODOS_FILE.open("w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    """TodoItem 리스트를 SQLite 에 저장 (전체 재저장)."""
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM todos")
+        for item in items:
+            cur.execute(
+                """
+                INSERT INTO todos (id, date, title, status)
+                VALUES (?, ?, ?, ?)
+                """,
+                (item.id, item.date, item.title, item.status),
+            )
+        conn.commit()
 
 
 # =========================
 # 접속 제한(나만 보기)용 의존성
 # =========================
-
-security = HTTPBasic()
-
 
 def owner_only(credentials: HTTPBasicCredentials = Depends(security)):
     """

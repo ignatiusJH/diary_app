@@ -17,6 +17,7 @@ from deps import (
     load_entry,
     save_entry_json,
     delete_entry_json,
+    load_all_entries,   # ✅ 추가
     templates,
 )
 
@@ -62,14 +63,9 @@ async def diary_index(
 
     all_entries: list[dict] = []
 
-    for json_file in sorted(DATA_DIR.glob("*.json"), reverse=True):
-        if json_file.name in ("schedule.json", "todos.json"):
-            continue
-
-        with json_file.open("r", encoding="utf-8") as f:
-            data = json.load(f)
-        data = _normalize_entry(data)
-
+    # ✅ 기존: DATA_DIR 아래 *.json 파일을 돌며 읽어오던 부분
+    # → 이제는 SQLite 에서 가져온 리스트를 사용
+    for data in load_all_entries():
         created_str = data.get("created_at") or ""
         created_date: date | None = None
         if created_str:
@@ -91,7 +87,6 @@ async def diary_index(
             if tag not in tags:
                 continue
 
-        data["id"] = json_file.stem
         all_entries.append(data)
 
     per_page    = ITEMS_PER_PAGE_GALLERY if view == "gallery" else ITEMS_PER_PAGE_LIST
