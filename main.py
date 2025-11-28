@@ -2,6 +2,8 @@
 from datetime import date, timedelta
 import calendar
 import logging
+from sqlalchemy import text   # ← 이거 추가
+
 
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse
@@ -56,18 +58,30 @@ app.include_router(restore_router)
 
 
 # =========================
-# 앱 시작 시: 테이블 자동 생성
+# 앱 시작 시: 테이블 자동 생성 + 컬럼 보정
 # =========================
 @app.on_event("startup")
 async def on_startup():
-    """
-    앱 시작할 때 한 번:
-    - SQLAlchemy Base 에 등록된 모든 모델에 대해 테이블이 없으면 생성
-    - 로컬/Render 둘 다 공통
-    """
     logger.info(">>> STARTUP: creating DB tables via Base.metadata.create_all")
-    # models 모듈 import 가 되어 있어야 Base 가 모든 모델을 알고 있음
+    import models  # 모델 등록
+
+    # 테이블 없으면 생성 (있으면 건들지 않음)
     Base.metadata.create_all(bind=engine)
+
+    # ---- 여기서부터 1회성 마이그레이션 ----
+    # Postgres 의 todos 테이블에 sort_index 컬럼이 없으면 추가
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE todos "
+                    "ADD COLUMN IF NOT EXISTS sort_index INTEGER"
+                )
+            )
+        logger.info(">>> STARTUP: ensured todos.sort_index column exists")
+    except Exception as e:
+        logger.error(">>> STARTUP: failed to ensure todos.sort_index: %s", e)
+
 
 
 # =========================
