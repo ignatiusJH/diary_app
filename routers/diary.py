@@ -1,29 +1,50 @@
 # routers/diary.py
 from pathlib import Path
 from datetime import datetime, date, timedelta
-import json
 import math
 import shutil
 
-from fastapi import APIRouter, Request, Form, UploadFile, File, HTTPException
+from fastapi import (
+    APIRouter,
+    Request,
+    Form,
+    UploadFile,
+    File,
+    HTTPException,
+    Depends,
+)
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy.orm import Session
 
 from deps import (
-    DATA_DIR,
     ITEMS_PER_PAGE_LIST,
     ITEMS_PER_PAGE_GALLERY,
-    _normalize_entry,
     _parse_tags,
-    load_entry,
-    save_entry_json,
-    delete_entry_json,
-    load_all_entries,   # ✅ 추가
     templates,
 )
+from db import get_db
+from models import Diary
 
 router = APIRouter()
 
 
+# -----------------------------
+# 헬퍼: Diary 모델 → 템플릿용 dict
+# -----------------------------
+def _diary_to_dict(row: Diary) -> dict:
+    return {
+        "id": str(row.id),
+        "title": row.title,
+        "content": row.content,
+        "image_url": row.image_url,
+        "created_at": row.created_at.strftime("%Y-%m-%d %H:%M") if row.created_at else "",
+        "tags": _parse_tags(row.tags or ""),
+    }
+
+
+# =========================
+# 1) 기록 목록 + 검색
+# =========================
 @router.get("/diary", response_class=HTMLResponse, name="diary_index")
 async def diary_index(
     request: Request,
@@ -33,13 +54,14 @@ async def diary_index(
     tag: str | None = None,
     page: int = 1,
     view: str = "list",
+    db: Session = Depends(get_db),
 ):
     """
     기록 목록 + 검색 화면
     """
     today = date.today()
     date_from: date | None = None
-    date_to:   date | None = None
+    date_to: date | None = None
 
     # 기간 계산
     if range == "today":
@@ -61,43 +83,34 @@ async def diary_index(
         if end:
             date_to = datetime.strptime(end, "%Y-%m-%d").date()
 
-    all_entries: list[dict] = []
+    # 기본 쿼리
+    query = db.query(Diary)
 
-    # ✅ 기존: DATA_DIR 아래 *.json 파일을 돌며 읽어오던 부분
-    # → 이제는 SQLite 에서 가져온 리스트를 사용
-    for data in load_all_entries():
-        created_str = data.get("created_at") or ""
-        created_date: date | None = None
-        if created_str:
-            try:
-                date_part = created_str.split(" ")[0]
-                created_date = datetime.strptime(date_part, "%Y-%m-%d").date()
-            except ValueError:
-                created_date = None
+    # 날짜 필터 (created_at 을 날짜 범위로 필터)
+    if date_from:
+        dt_from = datetime.combine(date_from, datetime.min.time())
+        query = query.filter(Diary.created_at >= dt_from)
+    if date_to:
+        dt_to = datetime.combine(date_to, datetime.max.time())
+        query = query.filter(Diary.created_at <= dt_to)
 
-        if date_from and created_date and created_date < date_from:
-            continue
-        if date_to and created_date and created_date > date_to:
-            continue
+    # 태그 필터 (단순 LIKE)
+    if tag:
+        query = query.filter(Diary.tags.contains(tag))
 
-        if tag:
-            tags = data.get("tags") or []
-            if isinstance(tags, str):
-                tags = _parse_tags(tags)
-            if tag not in tags:
-                continue
+    # 최신순 정렬
+    query = query.order_by(Diary.created_at.desc())
 
-        all_entries.append(data)
+    per_page = ITEMS_PER_PAGE_GALLERY if view == "gallery" else ITEMS_PER_PAGE_LIST
 
-    per_page    = ITEMS_PER_PAGE_GALLERY if view == "gallery" else ITEMS_PER_PAGE_LIST
-    total_items = len(all_entries)
+    total_items = query.count()
     total_pages = max(1, math.ceil(total_items / per_page)) if total_items else 1
 
-    page      = max(1, min(page, total_pages))
+    page = max(1, min(page, total_pages))
     start_idx = (page - 1) * per_page
-    end_idx   = start_idx + per_page
 
-    entries = all_entries[start_idx:end_idx]
+    rows = query.offset(start_idx).limit(per_page).all()
+    entries = [_diary_to_dict(r) for r in rows]
 
     return templates.TemplateResponse(
         "diary.html",
@@ -115,6 +128,9 @@ async def diary_index(
     )
 
 
+# =========================
+# 2) 새 기록 저장
+# =========================
 @router.post("/save", response_class=RedirectResponse)
 async def save_entry(
     request: Request,
@@ -124,12 +140,14 @@ async def save_entry(
     photo: UploadFile | None = File(None),
     view: str = Form("list"),
     redirect_url: str | None = Form(None),
+    db: Session = Depends(get_db),
 ):
     """새 기록 저장"""
     from deps import UPLOAD_DIR  # 순환 import 피하려고 내부에서 import
 
-    image_url = None
+    image_url: str | None = None
 
+    # 이미지 업로드
     if photo and photo.filename:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         ext = Path(photo.filename).suffix
@@ -141,31 +159,41 @@ async def save_entry(
 
         image_url = f"/uploads/{filename}"
 
-    created_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+    # 태그 정리 (리스트 -> 문자열)
+    tags_list = _parse_tags(tags)
+    tags_str = ", ".join(tags_list) if tags_list else ""
 
-    entry = {
-        "title": title,
-        "content": content.replace("\r\n", "\n"),
-        "image_url": image_url,
-        "created_at": created_at,
-        "tags": _parse_tags(tags),
-    }
-
-    entry_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_entry_json(entry_id, entry)
+    # DB 저장
+    diary = Diary(
+        title=title,
+        content=content.replace("\r\n", "\n"),
+        image_url=image_url,
+        tags=tags_str,
+    )
+    db.add(diary)
+    db.commit()
+    db.refresh(diary)
 
     target = redirect_url or f"/diary?view={view}"
     return RedirectResponse(url=target, status_code=303)
 
 
+# =========================
+# 3) 단일 기록 상세보기
+# =========================
 @router.get("/entry/{entry_id}", response_class=HTMLResponse)
 async def read_entry(
     request: Request,
     entry_id: str,
     view: str = "list",
+    db: Session = Depends(get_db),
 ):
-    entry = load_entry(entry_id)
-    entry["id"] = entry_id
+    diary = db.get(Diary, int(entry_id))
+    if not diary:
+        raise HTTPException(status_code=404, detail="Entry not found")
+
+    entry = _diary_to_dict(diary)
+
     return templates.TemplateResponse(
         "detail.html",
         {
@@ -176,14 +204,21 @@ async def read_entry(
     )
 
 
+# =========================
+# 4) 수정 폼
+# =========================
 @router.get("/entry/{entry_id}/edit", response_class=HTMLResponse)
 async def edit_entry_form(
     request: Request,
     entry_id: str,
     view: str = "list",
+    db: Session = Depends(get_db),
 ):
-    entry = load_entry(entry_id)
-    entry["id"] = entry_id
+    diary = db.get(Diary, int(entry_id))
+    if not diary:
+        raise HTTPException(status_code=404, detail="Entry not found")
+
+    entry = _diary_to_dict(diary)
     tags_str = ", ".join(entry.get("tags", []))
 
     return templates.TemplateResponse(
@@ -197,6 +232,9 @@ async def edit_entry_form(
     )
 
 
+# =========================
+# 5) 수정 제출
+# =========================
 @router.post("/entry/{entry_id}/edit")
 async def edit_entry_submit(
     entry_id: str,
@@ -207,19 +245,25 @@ async def edit_entry_submit(
     photo: UploadFile | None = File(None),
     remove_image: str | None = Form(None),
     redirect_url: str | None = Form(None),
+    db: Session = Depends(get_db),
 ):
     from deps import UPLOAD_DIR
 
-    entry = load_entry(entry_id)
+    diary = db.get(Diary, int(entry_id))
+    if not diary:
+        raise HTTPException(status_code=404, detail="Entry not found")
 
-    entry["title"] = title
-    entry["content"] = content.replace("\r\n", "\n")
-    entry["tags"] = _parse_tags(tags)
-    entry["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    diary.title = title
+    diary.content = content.replace("\r\n", "\n")
 
+    tags_list = _parse_tags(tags)
+    diary.tags = ", ".join(tags_list) if tags_list else ""
+
+    # 이미지 삭제
     if remove_image:
-        entry["image_url"] = None
+        diary.image_url = None
 
+    # 새 이미지 업로드
     if photo and photo.filename:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         ext = Path(photo.filename).suffix
@@ -229,31 +273,50 @@ async def edit_entry_submit(
         with save_path.open("wb") as buffer:
             shutil.copyfileobj(photo.file, buffer)
 
-        entry["image_url"] = f"/uploads/{filename}"
+        diary.image_url = f"/uploads/{filename}"
 
-    save_entry_json(entry_id, entry)
+    db.add(diary)
+    db.commit()
 
     target = redirect_url or f"/diary?view={view}"
     return RedirectResponse(url=target, status_code=303)
 
 
+# =========================
+# 6) 삭제
+# =========================
 @router.post("/entry/{entry_id}/delete")
 async def delete_entry(
     entry_id: str,
     view: str = Form("list"),
     redirect_url: str | None = Form(None),
+    db: Session = Depends(get_db),
 ):
-    delete_entry_json(entry_id)
-    
+    diary = db.get(Diary, int(entry_id))
+    if not diary:
+        raise HTTPException(status_code=404, detail="Entry not found")
+
+    db.delete(diary)
+    db.commit()
+
     target = redirect_url or f"/diary?view={view}"
     return RedirectResponse(url=target, status_code=303)
 
 
+# =========================
+# 7) JSON API (인라인 에디터용)
+# =========================
 @router.get("/api/entry/{entry_id}")
-async def api_get_entry(entry_id: str):
+async def api_get_entry(
+    entry_id: str,
+    db: Session = Depends(get_db),
+):
     """
     인라인 에디터(기록 탭 오른쪽)용 JSON API
     """
-    entry = load_entry(entry_id)
-    entry["id"] = entry_id
+    diary = db.get(Diary, int(entry_id))
+    if not diary:
+        raise HTTPException(status_code=404, detail="Entry not found")
+
+    entry = _diary_to_dict(diary)
     return entry

@@ -350,6 +350,35 @@
     white-space: pre-wrap;
   }
 
+  /* ===== 이미지 미리보기 ===== */
+  .editor-image-preview-row {
+    margin-top: 8px;
+  }
+
+  .editor-image-preview-label {
+    font-size: 13px;
+    color: #8b6f55;
+    margin-bottom: 4px;
+  }
+
+  .editor-image-preview-box {
+    width: 100%;
+    padding: 8px;                 /* 안쪽 여백 추가 */
+    box-sizing: border-box;       /* 패딩 포함해서 폭 계산 */
+    border-radius: 10px;          /* 카드와 맞추거나 조금 더 작게 */
+    border: 1px solid #d5c1a7;
+    background: #f7ecde;          /* 카드랑 거의 같은 톤 */
+  }
+
+  .editor-image-preview-box img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 6px;           /* 테두리랑 겹치지 않게 */
+    background: #e1d3c1;
+    cursor: pointer;              /* 클릭 가능 표시 */
+}
+
   .editor-bottom {
     display: flex;
     justify-content: flex-end;
@@ -608,6 +637,14 @@
             ></textarea>
           </div>
 
+          <!-- ★ 첨부 이미지 미리보기 영역 (내용 아래, 파일첨부 위) -->
+          <div class="editor-row editor-image-preview-wrap" id="image-preview-row" style="display:none;">
+            <label>첨부된 사진</label>
+            <div class="editor-image-preview-box">
+              <img id="image-preview" src="" alt="첨부 이미지 미리보기">
+            </div>
+          </div>
+
           <div class="editor-row">
             <label for="tags">태그 (쉼표로 구분)</label>
             <input
@@ -676,6 +713,18 @@
     const deleteButton   = document.getElementById("delete-button");
     const newEntryButton = document.getElementById("new-entry-button");
 
+    // ★ 이미지 프리뷰 관련 요소
+    const imagePreviewRow = document.getElementById("image-preview-row");
+    const imagePreview    = document.getElementById("image-preview");
+    
+    // ★ 이미지 클릭 시 새 창으로 크게 열기
+    if (imagePreview) {
+      imagePreview.addEventListener("click", function () {
+        if (!imagePreview.src) return;
+        window.open(imagePreview.src, "_blank");
+      });
+    }
+
     let currentId = null;
 
     function setCreateMode() {
@@ -689,6 +738,15 @@
       if (photoInput) {
         photoInput.value = "";
       }
+
+      // ★ 새 기록 모드에서는 이미지 프리뷰 감추기
+      if (imagePreviewRow) {
+        imagePreviewRow.style.display = "none";
+      }
+      if (imagePreview) {
+        imagePreview.src = "";
+      }
+
       editorForm.action = "/save";
       deleteButton.style.display = "none";
     }
@@ -701,6 +759,18 @@
       titleInput.value = entry.title || "";
       contentInput.value = (entry.content || "").replace(/\r\n/g, "\n");
       tagsInput.value = (entry.tags || []).join(", ");
+
+      // ★ 첨부 이미지가 있을 경우 프리뷰 표시
+      if (imagePreviewRow && imagePreview) {
+        if (entry.image_url) {
+          imagePreviewRow.style.display = "block";
+          imagePreview.src = entry.image_url;
+        } else {
+          imagePreviewRow.style.display = "none";
+          imagePreview.src = "";
+        }
+      }
+
       editorForm.action = "/entry/" + entry.id + "/edit";
       deleteForm.action  = "/entry/" + entry.id + "/delete";
       deleteButton.style.display = "inline-flex";
