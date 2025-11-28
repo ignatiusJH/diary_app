@@ -26,3 +26,11 @@ temp/
 
 # id, password
 .env
+
+# 백업/압축 파일은 전부 무시
+*.tar.gz
+*.zip
+
+# 백업 스크립트 결과물 등 (혹시 레포 안에서 만들 경우)
+STEPLOG_backup/
+steplog_backup.sh
