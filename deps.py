@@ -1,10 +1,6 @@
-# deps.py
 from pathlib import Path
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 import json
-import uuid
-import math
-import calendar
 import os
 import secrets
 import sqlite3
@@ -16,6 +12,10 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from starlette.status import HTTP_401_UNAUTHORIZED
 from pydantic import BaseModel
 from dotenv import load_dotenv
+
+# SQLAlchemy 세션 / ORM 모델
+from db import SessionLocal
+from models import Schedule, Todo  # models.py 에 정의한 ORM 클래스 사용
 
 # =========================
 # 공통 경로 / 상수
@@ -31,7 +31,7 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 DATA_DIR.mkdir(exist_ok=True)
 STATIC_DIR.mkdir(exist_ok=True)
 
-# SQLite DB 경로
+# SQLite DB 경로 (일기용 – 기존 구조 유지용)
 DB_PATH = DATA_DIR / "steplog.db"
 
 # 기록 목록 페이지당 개수
@@ -39,7 +39,7 @@ ITEMS_PER_PAGE_LIST    = 10
 ITEMS_PER_PAGE_GALLERY = 50
 HISTORY_ITEMS_PER_PAGE = 20  # 체크리스트 완료/포기 히스토리 1페이지당 개수
 
-# JSON 파일 경로 (이제 사용 안 하지만, 혹시 모를 마이그레이션용으로 남겨둠)
+# JSON 파일 경로 (백업/마이그레이션용으로만 유지)
 SCHEDULE_FILE = DATA_DIR / "schedule.json"   # 일정
 TODOS_FILE    = DATA_DIR / "todos.json"      # 체크리스트
 
@@ -54,21 +54,25 @@ templates = Jinja2Templates(directory="templates")
 
 
 # =========================
-# DB 유틸
+# (구) SQLite DB 유틸 – 일기용
 # =========================
 
 def get_connection() -> sqlite3.Connection:
+    """
+    옛날 일기/백업 코드에서 쓰는 로컬 SQLite 연결.
+    일정/투두는 이제 SQLAlchemy ORM 을 사용.
+    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def init_db() -> None:
-    """앱 시작 시 한 번만 호출: 필요한 테이블 생성."""
+    """앱 시작 시 한 번만 호출: 일기용 테이블 생성."""
     with get_connection() as conn:
         cur = conn.cursor()
 
-        # 일기 테이블
+        # 일기 테이블 (이건 계속 사용)
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS diary_entries (
@@ -83,37 +87,10 @@ def init_db() -> None:
             """
         )
 
-        # 일정 테이블
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS schedule_items (
-                id       TEXT PRIMARY KEY,
-                date     TEXT NOT NULL,   -- YYYY-MM-DD
-                title    TEXT NOT NULL,
-                memo     TEXT,
-                time     TEXT,            -- HH:MM
-                time_str TEXT,
-                place    TEXT
-            )
-            """
-        )
-
-        # 체크리스트 테이블
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS todos (
-                id     TEXT PRIMARY KEY,
-                date   TEXT NOT NULL,   -- YYYY-MM-DD
-                title  TEXT NOT NULL,
-                status TEXT NOT NULL    -- pending / done / giveup
-            )
-            """
-        )
-
         conn.commit()
 
 
-# 모듈 임포트 시 DB 초기화
+# 모듈 임포트 시 DB 초기화 (일기용)
 init_db()
 
 
@@ -129,7 +106,6 @@ def require_auth(credentials: HTTPBasicCredentials = Depends(security)):
     correct_user = os.getenv("DIARY_USER")
     correct_pass = os.getenv("DIARY_PASSWORD")
 
-    # 환경변수 안 넣으면 개발 중에 헷갈릴 수 있으니까 예외 던져버리기
     if not correct_user or not correct_pass:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -137,14 +113,12 @@ def require_auth(credentials: HTTPBasicCredentials = Depends(security)):
         )
 
     if credentials.username != correct_user or credentials.password != correct_pass:
-        # 잘못된 인증 → 401 + WWW-Authenticate 헤더
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
             headers={"WWW-Authenticate": "Basic"},
         )
 
-    # 여기까지 통과하면 인증 성공
     return credentials.username
 
 
@@ -280,7 +254,7 @@ def load_all_entries() -> list[dict]:
 
 
 # =========================
-# 일정 관련 (SQLite 버전)
+# 일정 관련 – SQLAlchemy 버전
 # =========================
 
 class ScheduleItem(BaseModel):
@@ -317,64 +291,81 @@ def schedule_sort_key(item: ScheduleItem):
 
 
 def load_schedule() -> List[ScheduleItem]:
-    """일정 전체 로드 (SQLite)"""
-    with get_connection() as conn:
-        cur = conn.execute(
-            """
-            SELECT id, date, title, memo, time, time_str, place
-            FROM schedule_items
-            """
+    """
+    일정 전체 로드 – SQLAlchemy schedules 테이블 사용.
+    /schedule, /, /backup 등에서 모두 이 함수를 통해 같은 DB를 보게 됨.
+    """
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(Schedule)
+            .order_by(Schedule.date, Schedule.title)
+            .all()
         )
-        rows = cur.fetchall()
 
-    items: list[ScheduleItem] = []
-    for row in rows:
-        item = ScheduleItem(
-            id=row["id"],
-            date=row["date"],
-            title=row["title"],
-            memo=row["memo"],
-            time=row["time"],
-            time_str=row["time_str"],
-            place=row["place"],
-        )
-        # time / time_str 보정 (예전 JSON 로직 유지)
-        if item.time and not item.time_str:
-            item.time_str = item.time
-        if item.time_str and not item.time:
-            item.time = item.time_str
-        items.append(item)
+        items: list[ScheduleItem] = []
+        for row in rows:
+            if isinstance(row.date, date):
+                date_str = row.date.isoformat()
+            else:
+                date_str = str(row.date)
 
-    items.sort(key=schedule_sort_key)
-    return items
+            time_str = getattr(row, "time_str", None)
+            time_raw = getattr(row, "time", None)
+            if not time_str and time_raw:
+                time_str = str(time_raw)
+
+            items.append(
+                ScheduleItem(
+                    id=str(row.id),
+                    date=date_str,
+                    title=row.title,
+                    memo=row.memo,
+                    time=time_raw,
+                    time_str=time_str,
+                    place=row.place,
+                )
+            )
+
+        items.sort(key=schedule_sort_key)
+        return items
+    finally:
+        db.close()
 
 
 def save_schedule(items: List[ScheduleItem]) -> None:
-    """일정 전체 저장 (SQLite, 전체 재저장 방식)"""
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("DELETE FROM schedule_items")
-        for item in items:
-            cur.execute(
-                """
-                INSERT INTO schedule_items (id, date, title, memo, time, time_str, place)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    item.id,
-                    item.date,
-                    item.title,
-                    item.memo,
-                    item.time,
-                    item.time_str,
-                    item.place,
-                ),
+    """
+    일정 전체 저장 – schedules 테이블을 통째로 갈아끼우는 방식.
+    """
+    db = SessionLocal()
+    try:
+        db.query(Schedule).delete()
+
+        for it in items:
+            try:
+                int_id = int(it.id)
+            except (TypeError, ValueError):
+                int_id = None
+
+            time_str = it.time_str or it.time
+
+            row = Schedule(
+                id=int_id,
+                date=it.date,
+                title=it.title,
+                memo=it.memo,
+                time_str=time_str,
+                place=it.place,
             )
-        conn.commit()
+            db.add(row)
+
+        db.commit()
+    finally:
+        db.close()
 
 
 # =========================
-# 체크리스트 관련 (SQLite 버전)
+# 체크리스트 관련 – SQLAlchemy 버전
 # =========================
 # status 값은 항상 이 셋만 사용:
 # - "pending" : 진행 중
@@ -389,46 +380,88 @@ class TodoItem(BaseModel):
 
 
 def load_todos() -> List[TodoItem]:
-    """SQLite 에서 TodoItem 리스트 로드."""
-    with get_connection() as conn:
-        cur = conn.execute(
-            """
-            SELECT id, date, title, status
-            FROM todos
-            """
-        )
-        rows = cur.fetchall()
+    """
+    SQLAlchemy todos 테이블에서 TodoItem 리스트 로드.
 
-    items: list[TodoItem] = []
-    for row in rows:
-        status = row["status"]
-        if status not in ("pending", "done", "giveup"):
-            status = "pending"
-        items.append(
-            TodoItem(
-                id=row["id"],
-                date=row["date"],
-                title=row["title"],
-                status=status,
-            )
+    ★ 핵심: 여기서 order 컬럼을 기준으로 정렬해 준다.
+      -> /todos 화면의 '진행 중' 리스트
+      -> 대시보드의 오늘 체크리스트
+      둘 다 이 순서를 그대로 사용한다.
+    """
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(Todo)
+            .order_by(Todo.date, Todo.order, Todo.id)  # ← order 기준 정렬
+            .all()
         )
-    return items
+
+        items: list[TodoItem] = []
+        for row in rows:
+            if isinstance(row.date, date):
+                date_str = row.date.isoformat()
+            else:
+                date_str = str(row.date)
+
+            status = row.status or "pending"
+            if status not in ("pending", "done", "giveup"):
+                status = "pending"
+
+            items.append(
+                TodoItem(
+                    id=str(row.id),
+                    date=date_str,
+                    title=row.title,
+                    status=status,
+                )
+            )
+
+        return items
+    finally:
+        db.close()
 
 
 def save_todos(items: List[TodoItem]) -> None:
-    """TodoItem 리스트를 SQLite 에 저장 (전체 재저장)."""
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute("DELETE FROM todos")
-        for item in items:
-            cur.execute(
-                """
-                INSERT INTO todos (id, date, title, status)
-                VALUES (?, ?, ?, ?)
-                """,
-                (item.id, item.date, item.title, item.status),
+    """
+    TodoItem 리스트를 todos 테이블에 저장 (전체 재저장).
+
+    - /todos 화면에서 새로 추가 / 제목 수정할 때 사용.
+    - 순서는 items 리스트의 순서를 기준으로 'pending' 에만 0,1,2,... 를 부여.
+    """
+    db = SessionLocal()
+    try:
+        db.query(Todo).delete()
+
+        # pending / 나머지 분리
+        pending_items = [it for it in items if it.status == "pending"]
+        other_items   = [it for it in items if it.status != "pending"]
+
+        # 진행 중: 0,1,2,...
+        for idx, it in enumerate(pending_items):
+            row = Todo(
+                id=it.id,
+                date=it.date,
+                title=it.title,
+                status=it.status,
+                order=idx,
             )
-        conn.commit()
+            db.add(row)
+
+        # 완료/포기: 큰 번호 + idx (순서 크게 신경 안 써도 되는 애들)
+        base = 100000
+        for idx, it in enumerate(other_items):
+            row = Todo(
+                id=it.id,
+                date=it.date,
+                title=it.title,
+                status=it.status,
+                order=base + idx,
+            )
+            db.add(row)
+
+        db.commit()
+    finally:
+        db.close()
 
 
 # =========================
@@ -440,8 +473,8 @@ def owner_only(credentials: HTTPBasicCredentials = Depends(security)):
     HTTP Basic Auth 로 '주인만 접속'하게 막는 의존성.
 
     환경변수:
-      STEPLOG_USER  : 아이디 (기본값: owner)
-      STEPLOG_PASS  : 비밀번호 (기본값: change-me)
+      STEPLOG_USER  : 아이디 (기본값: squapple)
+      STEPLOG_PASS  : 비밀번호 (기본값: september18!&)
     """
     username = os.getenv("STEPLOG_USER", "squapple")
     password = os.getenv("STEPLOG_PASS", "september18!&")

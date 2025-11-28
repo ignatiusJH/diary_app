@@ -26,12 +26,13 @@ from routers import (
 )
 
 # =========================
-# DB 관련
+# DB 관련 (Render / SQLAlchemy)
 # =========================
 from db import Base, engine
-import models  # Diary, Schedule, Todo 모델이 있는 파일 이름 (model.py 맞지?)
+import models  # Diary / Schedule / Todo 모델이 들어있는 models.py
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("steplog")
+
 
 # =========================
 # 앱 & 공통 설정
@@ -59,8 +60,13 @@ app.include_router(restore_router)
 # =========================
 @app.on_event("startup")
 async def on_startup():
+    """
+    앱 시작할 때 한 번:
+    - SQLAlchemy Base 에 등록된 모든 모델에 대해 테이블이 없으면 생성
+    - 로컬/Render 둘 다 공통
+    """
     logger.info(">>> STARTUP: creating DB tables via Base.metadata.create_all")
-    import models  # 모델들을 Base에 등록 (안전하게 한 번 더)
+    # models 모듈 import 가 되어 있어야 Base 가 모든 모델을 알고 있음
     Base.metadata.create_all(bind=engine)
 
 
@@ -72,7 +78,7 @@ async def dashboard(request: Request):
     today = date.today()
     today_str = today.isoformat()
 
-    # 일정
+    # ---- 일정 ----
     schedule_items = load_schedule()
     horizon = today + timedelta(days=15)
     upcoming = [
@@ -81,15 +87,12 @@ async def dashboard(request: Request):
     ]
     upcoming_sorted = sorted(upcoming, key=schedule_sort_key)
 
-    # 오늘 체크리스트 (진행중만)
+    # ---- 오늘 체크리스트 (진행중만) ----
     todos = load_todos()
-    today_todos = [
-        t for t in todos
-        if t.status == "pending"
-    ]
+    today_todos = [t for t in todos if t.status == "pending"]
 
-    # 달력 데이터
-    cal = calendar.Calendar(firstweekday=6)
+    # ---- 달력 데이터 ----
+    cal = calendar.Calendar(firstweekday=6)  # 일요일 시작
     weeks = []
     for week in cal.monthdatescalendar(today.year, today.month):
         week_data = []
@@ -102,6 +105,16 @@ async def dashboard(request: Request):
                 "is_today": (d == today),
             })
         weeks.append(week_data)
+
+    # 디버그용 로그 (필요없으면 주석처리해도 됨)
+    logger.info(
+        "DASHBOARD_DEBUG: schedules_total=%d upcoming_shown=%d "
+        "todos_total=%d pending_shown=%d",
+        len(schedule_items),
+        len(upcoming_sorted),
+        len(todos),
+        len(today_todos),
+    )
 
     return templates.TemplateResponse(
         "dashboard.html",

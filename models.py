@@ -37,3 +37,5 @@ class Todo(Base):
     title = Column(String(200), nullable=False)
     status = Column(String(20), nullable=False, default="pending")
     order = Column(Integer, nullable=False, default=0) # 정렬/드래그용
+    # ✅ 새로 추가: 정렬용 인덱스
+    sort_index = Column(Integer, nullable=False, default=0)
