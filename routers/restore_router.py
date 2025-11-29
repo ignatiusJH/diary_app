@@ -1,4 +1,13 @@
 # routers/restore_router.py
+# ---------------------------------------------------------
+# 이 라우터는 ZIP 파일을 업로드해서
+# 전체 DB(Diary, Schedule, Todo)와 /uploads 이미지 파일을
+# 통째로 복원하는 기능을 담당한다.
+#
+# ⚠ 매우 위험한 기능이다.
+#    기존 DB 내용을 모두 삭제하고, ZIP의 데이터로 완전히 갈아끼운다.
+# ---------------------------------------------------------
+
 import io
 import json
 import zipfile
@@ -11,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from db import get_db
 from models import Diary, Schedule, Todo
-from deps import UPLOAD_DIR  # <- 이미지 폴더
+from deps import UPLOAD_DIR  # 이미지 저장 폴더
 
 router = APIRouter()
 
@@ -22,34 +31,70 @@ async def restore_db(
     db: Session = Depends(get_db),
 ):
     """
-    /backup/db 에서 받은 steplog_backup.zip 을 업로드하면
-    DB(Diary, Schedule, Todo) + /uploads 이미지를 통째로 갈아끼운다.
+    업로드된 ZIP 파일에서
+    - steplog_backup.json (구버전)
+    - steplog_backup_YYYYMMDD.json (신버전)
+    - uploads/ 폴더 내 이미지들
+    을 읽어서 DB + 이미지 파일을 통째로 복원한다.
 
-    ⚠ 기존 DB 데이터는 모두 삭제되고, ZIP 내용으로 대체된다.
-    ⚠ /uploads 안의 기존 파일들도 ZIP 기준으로 다시 채운다고 보는 게 안전하다.
+    ⚠ 기존 DB 내용 전부 삭제됨.
+    ⚠ 기존 uploads 파일도 ZIP 내용으로 덮어쓰기됨.
     """
+
+    # -----------------------------
+    # 1) 확장자 검사
+    # -----------------------------
     if not file.filename.endswith(".zip"):
         raise HTTPException(status_code=400, detail="ZIP 파일을 업로드해주세요.")
 
+    # ZIP 파일 내용을 메모리로 읽기
     content = await file.read()
 
     try:
         mem_file = io.BytesIO(content)
+
+        # -----------------------------
+        # 2) ZIP 파일 열기
+        # -----------------------------
         with zipfile.ZipFile(mem_file, mode="r") as zf:
             namelist = zf.namelist()
 
-            if "steplog_backup.json" not in namelist:
+            # === 수정: 백업 JSON 파일 이름 호환 처리 ===
+            # 1순위: 예전 이름 steplog_backup.json
+            # 2순위: steplog_backup_YYYYMMDD.json 패턴 중 하나 (여러 개면 가장 최근 이름)
+            backup_json_name: str | None = None
+
+            # 1) 구버전 이름이 있으면 그걸 우선 사용
+            if "steplog_backup.json" in namelist:
+                backup_json_name = "steplog_backup.json"
+            else:
+                # 2) 새 버전 패턴: steplog_backup_YYYYMMDD.json
+                candidates = [
+                    name
+                    for name in namelist
+                    if name.startswith("steplog_backup_") and name.endswith(".json")
+                ]
+                if candidates:
+                    # 여러 개 있으면 이름 기준으로 정렬해서 '가장 뒤에 것(보통 최신)' 사용
+                    backup_json_name = sorted(candidates)[-1]
+
+            if not backup_json_name:
+                # 둘 중 어느 패턴도 없으면 에러
                 raise HTTPException(
                     status_code=400,
-                    detail="steplog_backup.json 이 포함된 백업 ZIP이 아닙니다.",
+                    detail="steplog_backup.json 또는 steplog_backup_YYYYMMDD.json 이 포함된 백업 ZIP이 아닙니다.",
                 )
+            # === 수정 끝 ===
 
-            json_bytes = zf.read("steplog_backup.json")
+            # JSON 데이터 읽기
+            json_bytes = zf.read(backup_json_name)
 
-            # 이미지 파일 목록 (uploads/로 시작하는 것들)
+            # uploads/... 이미지 목록
             image_names = [name for name in namelist if name.startswith("uploads/")]
 
-            # 먼저 JSON 파싱
+            # -----------------------------
+            # 3) JSON → dict 변환
+            # -----------------------------
             try:
                 data = json.loads(json_bytes.decode("utf-8"))
             except Exception:
@@ -59,15 +104,21 @@ async def restore_db(
             schedules_data = data.get("schedules", [])
             todos_data = data.get("todos", [])
 
-            # 1) DB 갈아끼우기
+            # =====================================================
+            # 4) DB 전체 삭제 후 → ZIP 내용으로 갈아끼우기
+            # =====================================================
             try:
+                # 기존 데이터 모두 삭제
                 db.query(Diary).delete()
                 db.query(Schedule).delete()
                 db.query(Todo).delete()
                 db.commit()
 
+                # -----------------------------
                 # Diary 복원
+                # -----------------------------
                 for d in diaries_data:
+                    # created_at 복원 (ISO 형식일 경우)
                     created_at = None
                     if d.get("created_at"):
                         try:
@@ -75,6 +126,7 @@ async def restore_db(
                         except Exception:
                             created_at = None
 
+                    # updated_at 복원 (Diary 모델엔 없지만, 혹시 모를 구버전 호환용)
                     updated_at = None
                     if d.get("updated_at"):
                         try:
@@ -88,14 +140,20 @@ async def restore_db(
                         image_url=d.get("image_url"),
                         tags=d.get("tags") or "",
                     )
+
+                    # created_at이 있으면 덮어쓰기
                     if created_at:
                         diary.created_at = created_at
+
+                    # Diary 모델에 updated_at 이 있다면(미래 확장 대비) 적용
                     if hasattr(diary, "updated_at") and updated_at:
                         diary.updated_at = updated_at
 
                     db.add(diary)
 
+                # -----------------------------
                 # Schedule 복원
+                # -----------------------------
                 for s in schedules_data:
                     sched = Schedule(
                         date=s.get("date") or "",
@@ -107,7 +165,9 @@ async def restore_db(
                     )
                     db.add(sched)
 
+                # -----------------------------
                 # Todo 복원
+                # -----------------------------
                 for t in todos_data:
                     todo = Todo(
                         id=t.get("id"),
@@ -124,23 +184,25 @@ async def restore_db(
                 db.rollback()
                 raise HTTPException(status_code=500, detail=f"DB 복원 중 오류 발생: {e}")
 
-            # 2) 이미지 파일 복원 (/uploads 폴더)
+            # =====================================================
+            # 5) 이미지 복원
+            # =====================================================
             try:
                 upload_dir: Path = UPLOAD_DIR
                 upload_dir.mkdir(parents=True, exist_ok=True)
 
-                # 기존 파일을 전부 지울지 말지는 선택인데,
-                # 백업 기준으로 맞추려면 지우는 게 맞다.
-                # 일단은 지우지 않고 '덮어쓰기' 방식으로 갈게.
-                # 필요하면 아래 주석 풀어서 전체 삭제 가능.
+                # 현재는 '덮어쓰기' 방식.
+                # ZIP 안의 파일만 새로 쓰고, 기존에 있던 파일은 지우지 않는다.
+                # 필요하면 전체 삭제하는 로직 활성 가능.
                 #
                 # for old in upload_dir.rglob("*"):
                 #     if old.is_file():
                 #         old.unlink()
 
+                # ZIP 에 포함된 uploads/* 파일을 그대로 저장
                 for name in image_names:
-                    # name 예: "uploads/20251128_123456.png"
-                    rel_path = name[len("uploads/") :]  # "20251128_123456.png"
+                    # name = "uploads/파일명"
+                    rel_path = name[len("uploads/"):]
                     if not rel_path:
                         continue
 
@@ -153,11 +215,10 @@ async def restore_db(
                         f.write(data_bytes)
 
             except Exception as e:
-                # 이미지 복원만 실패해도 앱은 돌아가게, 여기선 경고만 던지고 끝낼 수도 있는데
-                # 일단은 에러로 보고 HTTPException 던진다.
                 raise HTTPException(status_code=500, detail=f"이미지 복원 중 오류 발생: {e}")
 
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="손상된 ZIP 파일입니다.")
 
+    # 복원 완료 후 홈으로 이동
     return RedirectResponse(url="/", status_code=303)

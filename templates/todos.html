@@ -5,29 +5,32 @@
 {% block head_style %}
 <style>
   /* ===============================
-   * 공통 레이아웃 / 카드 스타일
+   * 포커스 스타일 공통
+   * - 버튼/입력창 선택 시 연한 오렌지 테두리
    * =============================== */
-
   button:focus,
   input:focus,
   select:focus,
   textarea:focus {
-  outline: none;
-  box-shadow: 0 0 0 1px rgba(200, 106, 33, 0.35); /* 연한 오렌지 포커스 링 */
+    outline: none;
+    box-shadow: 0 0 0 1px rgba(200, 106, 33, 0.35); /* 연한 오렌지 포커스 링 */
   }
 
+  /* 제목/인라인 입력 공통 폰트 크기 */
   .schedule-title,
   .history-title,
   .todo-edit-inline .todo-input {
     font-size: 14px;
   }
 
+  /* 페이지 전체 래퍼 */
   .todo-wrap {
     display: flex;
     flex-direction: column;
     gap: 16px;
   }
 
+  /* 페이지 헤더 (체크리스트 제목) */
   .page-header .page-title {
     font-size: 24px;
     font-weight: 600;
@@ -35,28 +38,30 @@
     color: #3b2f26; /* 진한 브라운 */
   }
 
-  /* 전체 레이아웃: 좌 4, 우 6 비율 */
+  /* ===============================
+   * 전체 레이아웃: 좌(4), 우(6)
+   * =============================== */
   .section-grid {
     display: flex;
-    flex-direction: column;
+    flex-direction: column; /* 기본: 모바일에서 위아래 */
     gap: 16px;
   }
 
   @media (min-width: 1024px) {
     .section-grid {
-      flex-direction: row;
+      flex-direction: row;       /* 데스크탑: 좌우로 나누기 */
       align-items: flex-start;
     }
 
     .section-left {
-      flex: 4;
+      flex: 4;                   /* 왼쪽: 새 항목 + 히스토리 */
       display: flex;
       flex-direction: column;
       gap: 16px;
     }
 
     .section-right {
-      flex: 6;
+      flex: 6;                   /* 오른쪽: 진행중 리스트 */
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -70,7 +75,9 @@
     gap: 16px;
   }
 
-  /* 카드 공통 스타일 (schedule 이랑 통일) */
+  /* ===============================
+   * 카드 공통 스타일 (desert 톤)
+   * =============================== */
   .card {
     background: #f7ecde;
     border-radius: 10px;
@@ -98,9 +105,8 @@
   }
 
   /* ===============================
-   * 입력 박스 (기록/일정과 톤 맞추기)
+   * 텍스트 인풋 (제목 수정/추가)
    * =============================== */
-
   .todo-input {
     width: 100%;
     padding: 9px 10px;
@@ -120,7 +126,7 @@
    * 버튼 공통
    * =============================== */
 
-  /* 오렌지 기본 버튼 (추가, 조회 등) */
+  /* 오렌지 기본 버튼 (추가, 조회, 등) */
   .btn-primary {
     padding: 8px 18px;
     border-radius: 999px;
@@ -136,7 +142,7 @@
     border-color: #a85416;
   }
 
-  /* 테두리만 있는 버튼 (열기/닫기, 조회 등) */
+  /* 테두리만 있는 버튼 (조회, 토글 등) */
   .btn-outline {
     padding: 6px 14px;
     border-radius: 999px;
@@ -152,7 +158,7 @@
     color: #5b4332;
   }
 
-  /* 진행중 항목의 액션 버튼(수정/완료/포기/삭제) 공통 */
+  /* pill 형태 버튼 (진행중 / 히스토리 공용으로 사용) */
   .todo-pill {
     padding: 4px 10px;
     border-radius: 999px;
@@ -175,13 +181,14 @@
    * 새 항목 추가 카드
    * =============================== */
 
+  /* 입력 / 버튼 세로 정렬 */
   .todo-new-form {
     display: flex;
     flex-direction: column;
     gap: 10px;
   }
 
-  /* 추가 버튼을 오른쪽 정렬 */
+  /* 추가 버튼을 오른쪽으로 붙이기 */
   .todo-new-form .btn-primary {
     align-self: flex-end;
   }
@@ -199,6 +206,7 @@
     gap: 8px;
   }
 
+  /* 각 todo 카드 (드래그 가능) */
   .todo-item {
     display: flex;
     align-items: center;
@@ -214,11 +222,13 @@
     cursor: grabbing;
   }
 
+  /* 드래그 중인 항목 강조 */
   .todo-item.dragging {
     opacity: 0.7;
     border-color: #c86a21;
   }
 
+  /* 왼쪽(제목, 인풋) 영역 */
   .todo-left {
     flex: 1;
     display: flex;
@@ -237,7 +247,7 @@
     flex: 1;
   }
 
-  /* 액션 버튼 줄(수정/완료/포기/삭제) */
+  /* 오른쪽 액션 버튼 영역 (완료/포기/삭제) */
   .todo-actions {
     display: flex;
     flex-direction: row;
@@ -255,6 +265,7 @@
     color: #a58a6d;
   }
 
+  /* 작은 화면에서 레이아웃 깨지지 않게: 위/아래 정렬 */
   @media (max-width: 900px) {
     .todo-item {
       flex-direction: column;
@@ -271,7 +282,7 @@
    * =============================== */
 
   .history-header {
-    cursor: pointer;
+    cursor: pointer; /* 헤더 전체를 클릭해서 열기/닫기 */
   }
 
   .history-toggle-btn {
@@ -289,9 +300,10 @@
     color: #5b4332;
   }
 
+  /* JS 에서 block / none 으로 토글 */
   .history-body {
     margin-top: 8px;
-    display: none; /* JS에서 block으로 토글 */
+    display: none;
   }
 
   .history-filter {
@@ -324,7 +336,7 @@
     font-size: 12px;
   }
 
-  /* 기간 검색용 달력 아이콘은 기본 색 그대로 */
+  /* 기간 검색용 date input 의 달력 아이콘은 기본 스타일 유지 */
   .history-filter input[type="date"]::-webkit-calendar-picker-indicator {
     filter: none;
   }
@@ -355,9 +367,25 @@
     font-size: 11px;
     color: #8b6f55;
     display: flex;
+    align-items: center;
     gap: 8px;
+    justify-content: space-between;
   }
 
+  /* 상태/날짜 묶음과 버튼 영역 분리 */
+  .history-meta-left {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .history-meta-right {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  /* 상태별 색상: 완료 / 포기 */
   .history-status.done {
     color: #25633c;
   }
@@ -385,6 +413,7 @@
     border-color: #c86a21;
   }
 
+  /* 완료/포기 내역 페이지네이션 */
   .pagination {
     margin-top: 10px;
     display: flex;
@@ -432,12 +461,16 @@
          왼쪽: 새 항목 + 완료/포기 내역
          ========================= -->
     <div class="section-left">
-      <!-- 새 항목 추가 -->
+      <!-- 새 항목 추가 카드 -->
       <section class="card">
         <div class="card-header">
           <div class="card-title">새 항목 추가</div>
         </div>
 
+        {# 
+          새 pending 항목 생성 폼
+          - POST /todos
+        #}
         <form method="post"
               action="/todos"
               class="todo-new-form todo-confirm"
@@ -452,7 +485,7 @@
         </form>
       </section>
 
-      <!-- 완료 / 포기 내역 (접었다 펼치는 카드) -->
+      <!-- 완료 / 포기 내역 카드 (접었다 펼치는 구조) -->
       <section class="card">
         <div class="card-header history-header" id="history-toggle">
           <div>
@@ -469,6 +502,7 @@
           </button>
         </div>
 
+        {# 상단 페이지 이동 버튼 (항상 보이게) #}
         {% if history_total_pages > 1 %}
           <div class="pagination">
             {% for p in range(1, history_total_pages + 1) %}
@@ -480,8 +514,9 @@
           </div>
         {% endif %}
 
+        <!-- 실제 내용(필터 + 리스트)은 history-body 안에 있고, JS로 열고 닫음 -->
         <div class="history-body" id="history-body">
-          <!-- 기간 검색 -->
+          <!-- 기간/상태 검색 -->
           <form method="get" class="history-filter">
             <div class="history-filter-row">
               <label>기간</label>
@@ -514,6 +549,7 @@
             </div>
           </form>
 
+          {# history_items 가 없을 수도 있으므로 default 처리 #}
           {% set hist_list = history_items|default([], true) %}
           {% if hist_list %}
             <ul class="history-list">
@@ -521,13 +557,32 @@
                 <li class="history-item">
                   <div class="history-title">{{ h.title }}</div>
                   <div class="history-meta">
-                    <span class="history-date">{{ h.date }}</span>
-                    <span class="history-status
-                                 {% if h.status == 'done' %}done{% elif h.status == 'giveup' %}giveup{% endif %}">
-                      {% if h.status == "done" %}완료
-                      {% elif h.status == "giveup" %}포기
-                      {% else %}기타{% endif %}
-                    </span>
+                    <!-- 왼쪽: 날짜 + 상태 -->
+                    <div class="history-meta-left">
+                      <span class="history-date">{{ h.date }}</span>
+                      <span class="history-status
+                                   {% if h.status == 'done' %}done{% elif h.status == 'giveup' %}giveup{% endif %}">
+                        {% if h.status == "done" %}완료
+                        {% elif h.status == "giveup" %}포기
+                        {% else %}기타{% endif %}
+                      </span>
+                    </div>
+
+                    <!-- 오른쪽: 삭제 버튼 -->
+                    <div class="history-meta-right">
+                      {# 
+                        히스토리 항목 삭제
+                        - POST /todos/{{ h.id }}/delete
+                        - todos.py 의 delete_todo 재사용
+                        - 리다이렉트: /todos?open_history=1 (패널 유지)
+                      #}
+                      <form method="post"
+                            action="/todos/{{ h.id }}/delete"
+                            class="todo-confirm"
+                            data-action="delete">
+                        <button type="submit" class="todo-pill">삭제</button>
+                      </form>
+                    </div>
                   </div>
                 </li>
               {% endfor %}
@@ -536,6 +591,7 @@
             <p class="history-empty">완료하거나 포기한 항목이 없습니다.</p>
           {% endif %}
 
+          {# 하단에는 현재 페이지/전체 페이지만 간단히 표시 #}
           {% if history_total_pages and history_total_pages > 1 %}
             <div class="pagination">
               {% set cur = history_page|default(1, true) %}
@@ -565,7 +621,7 @@
             {% for item in items %}
             <li class="todo-item" draggable="true" data-todo-id="{{ item.id }}">
               <div class="todo-left">
-                <!-- 제목 인라인 수정 -->
+                <!-- 제목 인라인 수정 폼 -->
                 <form method="post"
                       action="/todos/{{ item.id }}/update"
                       class="todo-edit-inline todo-confirm"
@@ -579,6 +635,7 @@
                 </form>
               </div>
 
+              <!-- 오른쪽 액션 버튼들 (완료/포기/삭제) -->
               <div class="todo-actions">
                 <!-- 완료 -->
                 <form method="post"
@@ -619,7 +676,7 @@
   // ===============================
   // 1) 완료 / 포기 내역 카드 열기/닫기
   //    - 기본: 닫힘
-  //    - URL에 open_history=1 이 있을 때만 열림
+  //    - URL에 open_history=1 이 있으면 열림
   // ===============================
   (function () {
     const historyHeader = document.getElementById("history-toggle");
@@ -628,11 +685,11 @@
 
     if (!historyHeader || !historyBody || !historyBtn) return;
 
-    // URL 파라미터만 보고 결정
+    // URL 쿼리 파라미터에서 open_history 값을 확인
     const params = new URLSearchParams(window.location.search);
     const openFromUrl = params.get("open_history") === "1";
 
-    // 기본은 닫힘(false), open_history=1 이면 열림(true)
+    // 기본 값: false, ?open_history=1 이면 true
     let open = openFromUrl;
 
     function updateState() {
@@ -641,19 +698,21 @@
       historyBtn.setAttribute("aria-expanded", open ? "true" : "false");
     }
 
+    // 카드 헤더 전체를 클릭하면 열기/닫기 토글
     historyHeader.addEventListener("click", function () {
       open = !open;
       updateState();
     });
 
-    // 첫 로드시 적용
+    // 초기 상태 반영
     updateState();
   })();
 
 
   // ===============================
   // 2) 공통 confirm 처리
-  //    (data-action 값에 따라 메시지 분기)
+  //    - data-action 에 따라 메시지 분기
+  //    - create / update / done / giveup / delete
   // ===============================
   (function () {
     const messages = {
@@ -677,15 +736,16 @@
 
   // ===============================
   // 3) 드래그 & 드롭으로 순서 변경
-  //    (백엔드로 /todos/reorder POST)
+  //    - /todos/reorder 로 POST
+  //    - pending 상태 항목의 order 필드를 재정렬
   // ===============================
   (function () {
     const list = document.querySelector(".todo-list");
-    if (!list) return;
+    if (!list) return;  // 진행중 항목이 없으면 드래그 기능 없음
 
     let draggingItem = null;
 
-    // 드래그 시작
+    // 드래그 시작: 어떤 li 를 끌고 있는지 기록
     list.addEventListener("dragstart", function (e) {
       const item = e.target.closest(".todo-item");
       if (!item) return;
@@ -695,7 +755,7 @@
       e.dataTransfer.setData("text/plain", item.dataset.todoId || "");
     });
 
-    // 드래그 종료
+    // 드래그 종료: 스타일 원상복구
     list.addEventListener("dragend", function () {
       if (draggingItem) {
         draggingItem.classList.remove("dragging");
@@ -703,7 +763,7 @@
       }
     });
 
-    // 드래그 중: 위치 계산해서 미리 배치
+    // 드래그 중: 마우스 위치 기준으로 들어갈 위치 계산
     list.addEventListener("dragover", function (e) {
       e.preventDefault();
       const afterElement = getDragAfterElement(list, e.clientY);
@@ -711,19 +771,21 @@
       if (!dragging) return;
 
       if (!afterElement) {
+        // 맨 아래로
         list.appendChild(dragging);
       } else {
+        // 특정 요소 앞에 삽입
         list.insertBefore(dragging, afterElement);
       }
     });
 
-    // 드롭 후 순서 저장 요청
+    // 드롭 시: 현재 순서대로 id 목록을 서버에 저장
     list.addEventListener("drop", function (e) {
       e.preventDefault();
       saveOrder();
     });
 
-    // 현재 마우스 위치 기준으로 들어갈 위치 계산
+    // 현재 마우스 y 위치보다 "바로 아래"에 들어갈 요소 찾기
     function getDragAfterElement(container, y) {
       const items = Array.from(
         container.querySelectorAll(".todo-item:not(.dragging)")
@@ -733,6 +795,7 @@
         function (closest, child) {
           const box = child.getBoundingClientRect();
           const offset = y - box.top - box.height / 2;
+          // offset < 0 이면 마우스가 child 위쪽에 있다는 뜻
           if (offset < 0 && offset > closest.offset) {
             return { offset: offset, element: child };
           } else {
@@ -743,7 +806,7 @@
       ).element;
     }
 
-    // 순서를 서버에 저장
+    // 정렬된 순서를 서버에 전송
     function saveOrder() {
       const ids = Array.from(list.querySelectorAll(".todo-item"))
         .map(function (li) { return li.dataset.todoId; })

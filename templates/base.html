@@ -1,14 +1,42 @@
+<!--
+    base.html
+    - 스텝로그 전체 페이지의 "공통 뼈대(레이아웃)" 역할을 하는 템플릿
+    - 다른 HTML 파일들이 이 파일을 상속(extends 개념)해서,
+      "제목용 블록"과 "내용용 블록" 부분을 각자 채워 넣는다.
+-->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8" />
+    <!--
+        viewport
+        - 모바일/PC 화면에 따라 자동으로 크기를 맞추기 위한 설정
+        - 반응형(Responsive) 웹을 만들 때 거의 필수로 넣는 코드
+    -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <!--
+        이 <title> 태그 안에는 "제목용 블록"이 들어 있다.
+        - 자식 템플릿에서 이 블록을 덮어써서 페이지 제목을 바꾼다.
+        - 예시(설명):
+          * 기본값 : 여기 정의된 '스텝로그'가 사용된다.
+          * 자식 페이지 : "오늘의 기록 - 스텝로그" 처럼 자기만의 제목을 넣는다.
+    -->
     <title>{% block title %}스텝로그{% endblock %}</title>
 
-    <!-- 공통 스타일 (사막 대비 테마) -->
+    <!--
+        공통 스타일 정의
+        - 여기서 정의한 CSS는 모든 페이지에 공통으로 적용된다.
+        - "사막 톤"의 색감(모래색 배경, 브라운 계열)을 사용.
+    -->
     <style>
         :root {
+            /*
+                CSS 변수 정의
+                - var(--이름) 으로 사용할 수 있는 전역 색상/값들
+                - 나중에 테마를 바꾸고 싶으면 여기만 수정하면 된다.
+            */
+
             /* 기본 배경 / 표면 */
             --bg: #fbf6eb;              /* 아주 연한 사막 모래 */
             --bg-elevated: #f3ebdd;     /* 카드, 패널 배경 */
@@ -20,15 +48,15 @@
 
             /* 텍스트 */
             --text-main: #2b1b10;       /* 기본 본문 텍스트 */
-            --text-sub: #7a5b3a;        /* 서브 텍스트 */
-            --text-on-nav: #fdf7ec;     /* 내비 위 텍스트 */
+            --text-sub: #7a5b3a;        /* 서브 텍스트(설명, 부제 등) */
+            --text-on-nav: #fdf7ec;     /* 내비게이션 위의 글자 색 */
 
-            /* 포인트 / 액센트 */
+            /* 포인트 / 액센트 색상 */
             --accent: #b3672b;          /* 버튼, 강조 포인트 */
             --accent-soft: #d4b49d;     /* 연한 포인트 */
-            --accent-strong: #f2c14f;   /* 강조되는 하이라이트(밝은 골드) */
+            --accent-strong: #f2c14f;   /* 하이라이트(밝은 골드) */
 
-            /* 버튼용 */
+            /* 버튼용 색상 */
             --btn-bg: #e9ddcd;
             --btn-border: #c9a782;
             --btn-hover-bg: #dcc8af;
@@ -37,71 +65,84 @@
 
         /* =============================
            전체 기본 톤
+           - body: 페이지 전체 배경/폰트 설정
+           - .container: 실제 내용이 들어가는 가운데 영역
            ============================= */
         body {
             margin: 0;
             padding: 0;
-            background: var(--bg);
-            color: var(--text-main);
+            background: var(--bg);          /* 화면 전체 배경색 */
+            color: var(--text-main);        /* 기본 텍스트 색 */
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
                          Roboto, Oxygen, Ubuntu, Cantarell, "Noto Sans KR",
-                         sans-serif;
+                         sans-serif;        /* 기본 폰트 (시스템 폰트 + 한글) */
         }
 
         .container {
+            /* 가운데 정렬 + 최대 너비 제한 (너무 넓어지지 않게) */
             max-width: 1180px;
-            margin: 0 auto;
-            padding: 24px 18px 60px;
+            margin: 0 auto;             /* 좌우 자동 여백 → 가운데 정렬 */
+            padding: 24px 18px 60px;    /* 위/양옆/아래 여백 */
         }
 
         /* =============================
-           내비게이션
+           내비게이션 (상단 메뉴바)
            ============================= */
         nav {
-            display: flex;
+            display: flex;                      /* 가로로 나란히 배치 */
             align-items: center;
-            justify-content: space-between;
+            justify-content: space-between;     /* 좌우 끝으로 정렬 */
             padding: 16px 22px;
-            background: var(--bg-nav);
+            background: var(--bg-nav);          /* 진한 브라운 배경 */
             border-bottom: 1px solid var(--border-strong);
-            position: sticky;
+            position: sticky;                   /* 스크롤해도 상단에 고정 */
             top: 0;
-            z-index: 20;
+            z-index: 20;                        /* 다른 요소들보다 위에 오게 */
         }
 
         .nav-left {
+            /* 왼쪽 로고/서비스명 영역 */
             font-size: 20px;
             font-weight: 700;
             color: var(--text-on-nav);
         }
 
         .nav-right {
+            /* 오른쪽 메뉴 링크들(대시보드/기록/일정/...) 모음 */
             display: flex;
             align-items: center;
-            gap: 18px;
+            gap: 18px;      /* 링크들 사이 간격 */
         }
 
         .nav-link {
+            /* 상단 메뉴에서 각 탭(대시보드/기록/일정 등)의 기본 스타일 */
             color: rgba(253, 247, 236, 0.75);
             font-size: 15px;
-            text-decoration: none;
+            text-decoration: none;        /* 밑줄 제거 */
             padding: 4px 2px;
             transition: color .15s, border-color .15s;
-            border-bottom: 2px solid transparent;
+            border-bottom: 2px solid transparent; /* active 상태용 밑줄 자리를 미리 만들어 둠 */
         }
 
         .nav-link:hover {
+            /* 마우스를 올렸을 때 색 강조 */
             color: var(--text-on-nav);
         }
 
         .nav-link.active {
+            /*
+                현재 페이지에 해당하는 메뉴에만 active 클래스가 붙음.
+                - 글자를 더 진하게
+                - 아래에 색깔 있는 밑줄 표시
+            */
             color: var(--text-on-nav);
             font-weight: 600;
             border-bottom-color: var(--accent-strong);
         }
 
         /* =============================
-           페이지 헤더
+           페이지 헤더(제목 영역)
+           - 각 페이지에서 제목/설명을 감싸는 용도
            ============================= */
         .page-header {
             display: flex;
@@ -121,7 +162,9 @@
         }
 
         /* =============================
-           버튼 통일
+           버튼 통일 스타일
+           - .btn-primary : 주요 액션 버튼
+           - .btn-ghost   : 서브/보조 버튼
            ============================= */
         .btn-primary,
         .btn-ghost {
@@ -139,7 +182,7 @@
         .btn-primary {
             background: var(--accent);
             border-color: var(--accent);
-            color: #fffaf3;
+            color: #fffaf3;    /* 버튼 위 글자는 밝은 색 */
         }
 
         .btn-primary:hover {
@@ -154,10 +197,11 @@
 
         /* =============================
            레이아웃 그리드
+           - 대시보드 등에서 좌우 2열/전체 영역 분할할 때 사용
            ============================= */
         .section-grid {
             display: flex;
-            flex-direction: column;
+            flex-direction: column;   /* 모바일(기본)에서는 위아래로 쌓기 */
             gap: 16px;
         }
 
@@ -169,6 +213,11 @@
         }
 
         @media (min-width: 1024px) {
+            /*
+                화면이 넓어지면(1024px 이상) 레이아웃을 가로 2열 구조로 변경.
+                - section-half : 좌측/우측 영역
+                - section-full : 더 넓게 쓰는 영역
+            */
             .section-grid {
                 flex-direction: row;
                 align-items: flex-start;
@@ -179,6 +228,7 @@
 
         /* =============================
            카드 스타일
+           - 박스 형태로 내용(리스트/설명/통계 등)을 감싸는 용도
            ============================= */
         .card {
             background: var(--bg-elevated);
@@ -204,11 +254,11 @@
             color: var(--text-sub);
         }
 
-        /* 작은 필터·배지 스타일 */
+        /* 작은 필터·배지 스타일 (예: 태그, 상태 표시용) */
         .pill {
             font-size: 12px;
             padding: 4px 8px;
-            border-radius: 999px;
+            border-radius: 999px;          /* 완전 둥근 모양 */
             border: 1px solid var(--border-soft);
             color: var(--text-sub);
             text-decoration: none;
@@ -222,14 +272,15 @@
         }
 
         /* =============================
-        모바일 전용 네비게이션 정리
-        ============================= */
+           모바일 전용 네비게이션 정리
+           - 화면 폭이 768px 이하인 경우(핸드폰) 스타일 조정
+           ============================= */
         @media (max-width: 768px) {
             nav {
-                flex-direction: column;
+                flex-direction: column;   /* 위아래로 쌓기 */
                 align-items: stretch;
                 gap: 8px;
-                padding: 14px 18px;   /* 모바일에서 살짝 여유 있게 */
+                padding: 14px 18px;       /* 모바일에서 살짝 여유 있게 */
             }
 
             .nav-left {
@@ -239,24 +290,28 @@
             .nav-right {
                 width: 100%;
                 display: flex;
-                justify-content: space-between; /* 화면 폭에 맞게 골고루 배치 */
+                justify-content: space-between; /* 탭들을 가로로 쭉 펼침 */
                 align-items: center;
                 flex-wrap: nowrap;
                 gap: 10px;
-                padding: 0 4px;                /* 양 끝에 추가 여백 */
+                padding: 0 4px;                /* 양 끝에 여백 */
             }
 
             .nav-link {
-                font-size: 15px;      /* 글자 좀 키우기 */
-                padding: 4px 6px;     /* 탭 터치 영역 확대 */
-                white-space: nowrap;  /* 줄바꿈 없이 일렬로 */
+                font-size: 15px;      /* 글자 조금 키우기 */
+                padding: 4px 6px;     /* 터치 영역 넓히기 */
+                white-space: nowrap;  /* 줄바꿈 없이 일렬로 유지 */
             }
         }
 
     </style>
 
-    <!-- PWA manifest -->
-    <!-- PWA manifest -->
+    <!--
+        PWA 관련 설정
+        - manifest: 앱 이름, 아이콘, 시작 URL 등 설정 파일
+        - theme-color: 안드로이드 크롬 주소줄 색상
+        - apple-...: iOS 홈 화면에 추가했을 때의 동작/아이콘 지정
+    -->
     <link rel="manifest" href="/static/manifest.webmanifest">
 
     <!-- 주소줄 색상 (안드로이드 크롬) -->
@@ -267,41 +322,63 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="STEPLOG">
 
-    <!-- iOS용 아이콘 (나중에 실제 파일 만들면 됨) -->
+    <!-- iOS / 일반 브라우저에서 사용할 아이콘들 -->
     <link rel="manifest" href="/static/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/static/icon-512.png">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 
+    <!--
+        자식 템플릿에서 head 안에 CSS를 더 추가하고 싶을 때 사용하는 "스타일용 블록".
+        - 예: 각 페이지 전용 스타일을 이 블록 안에 작성.
+        - 이 줄 자체는 기본값(아무 것도 없음)을 의미한다.
+    -->
     {% block head_style %}{% endblock %}
+    <!--
+        자식 템플릿에서 스크립트나 메타 태그를 더 넣고 싶을 때 사용하는 "추가 head 블록".
+        - 예: 페이지별 JavaScript를 <head> 안에 넣어야 할 경우 등.
+    -->
     {% block extra_head %}{% endblock %}
 </head>
 
 <body>
-    <!-- Navigation -->
+    <!--
+        상단 고정 내비게이션 영역
+        - 왼쪽: 서비스 이름(스텝로그)
+        - 오른쪽: 각 페이지로 이동하는 메뉴 링크들
+    -->
     <nav>
         <div class="nav-left">스텝로그</div>
 
         <div class="nav-right">
+            <!--
+                request.url_for('home')
+                - FastAPI의 라우터 이름으로 URL 생성
+                - 현재 경로가 '/' 이면 active 클래스를 붙여서 하이라이트
+            -->
             <a href="{{ request.url_for('home') }}"
                class="nav-link {% if request.url.path == '/' %}active{% endif %}">
                대시보드
             </a>
 
+            <!-- 기록(일기) 페이지 링크 -->
             <a href="{{ request.url_for('diary_index') }}"
                class="nav-link {% if request.url.path.startswith('/diary') %}active{% endif %}">
                기록
             </a>
 
+            <!-- 일정 페이지 링크 -->
             <a href="{{ request.url_for('schedule_page') }}"
                class="nav-link {% if request.url.path.startswith('/schedule') %}active{% endif %}">
                일정
             </a>
 
+            <!-- 체크리스트 페이지 링크 -->
             <a href="{{ request.url_for('todo_page') }}"
                class="nav-link {% if request.url.path.startswith('/todos') %}active{% endif %}">
                체크리스트
             </a>
 
+            <!-- 통계 페이지 링크 -->
             <a href="{{ request.url_for('stats_page') }}"
                class="nav-link {% if request.url.path.startswith('/stats') %}active{% endif %}">
                통계
@@ -309,6 +386,12 @@
         </div>
     </nav>
 
+    <!--
+        실제 페이지별 내용이 들어가는 영역.
+        - 자식 템플릿에서는 이 "내용용 블록"을 채워서 각 페이지 고유의 UI를 만든다.
+        - 예를 들어, 기록 페이지, 일정 페이지, 체크리스트 페이지 등이
+          이 블록 안을 자기 내용으로 덮어쓴다.
+    -->
     <div class="container">
         {% block content %}{% endblock %}
     </div>

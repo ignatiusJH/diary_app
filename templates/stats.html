@@ -1,6 +1,12 @@
+{# ----------------------------------------------
+  stats.html
+  - 체크리스트(Todo)의 전체/기간별 통계를 보여주는 페이지
+  - /stats 라우트에서 렌더링됨 (routers/stats.py)
+  ---------------------------------------------- #}
 {% extends "base.html" %}
 {% block title %}상태 / 통계 - 스텝로그{% endblock %}
 
+{# head 안에 통계 페이지 전용 CSS를 추가하는 블록 #}
 {% block head_style %}
 <style>
   .stats-wrap {
@@ -21,7 +27,7 @@
     color: #8b6f55;
   }
 
-  /* ===== 필터 블록 전체 ===== */
+  /* ===== 상단 기간 필터 블록 전체 ===== */
   .stats-filter-block {
     margin-top: 8px;
     margin-bottom: 20px;
@@ -60,7 +66,7 @@
   }
 
   .stats-date-input::-webkit-calendar-picker-indicator {
-    filter: invert(0.3);
+    filter: invert(0.3); /* 날짜 선택 아이콘 색 살짝 조정 */
   }
 
   .stats-tilde {
@@ -80,7 +86,7 @@
     margin-top: 6px;
   }
 
-  /* ===== 버튼 (오렌지 톤 통일) ===== */
+  /* ===== 공통 버튼 (통계 페이지 전용) ===== */
   .btn-stat-primary,
   .btn-stat-ghost {
     font-size: 13px;
@@ -117,7 +123,7 @@
     border-color: #d5c1a7;
   }
 
-  /* ===== 섹션 라벨 ===== */
+  /* ===== 섹션 라벨 (소제목) ===== */
   .section-label {
     margin-top: 20px;
     margin-bottom: 8px;
@@ -126,7 +132,7 @@
     color: #3b2f26;
   }
 
-  /* ===== 카드 그리드 ===== */
+  /* ===== 통계 카드 그리드 ===== */
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -164,7 +170,7 @@
     margin-top: 16px;
   }
 
-  /* ===== 하단 고정 백업/복원 버튼 컨테이너 ===== */
+  /* ===== 오른쪽 아래 고정 백업/복원 버튼 컨테이너 ===== */
   .backup-restore-container {
     position: fixed;
     right: 16px;
@@ -174,11 +180,11 @@
     gap: 8px;
   }
 
-  /* ===== 모바일 레이아웃 ===== */
+  /* ===== 모바일 레이아웃 조정 ===== */
   @media (max-width: 768px) {
     .stats-filter-form {
       align-items: stretch;
-      margin-left: 0px;
+      margin-left: 0;
       margin-right: 30px;
     }
 
@@ -206,13 +212,18 @@
 </style>
 {% endblock %}
 
+{# 실제 페이지 내용 영역 #}
 {% block content %}
 <div class="stats-wrap">
+  <!-- 상단 제목 -->
   <div class="page-header">
     <div class="page-title">상태 / 통계</div>
   </div>
 
-  <!-- 체크리스트 기간 필터 -->
+  <!-- ============================
+       1) 체크리스트 기간 필터
+       - stats.py 에서 start / end 를 쿼리로 받아서 필터링
+       ============================ -->
   <div class="stats-filter-block">
     <div class="stats-filter-title">체크리스트 기간 필터</div>
 
@@ -239,12 +250,25 @@
       </div>
     </form>
 
+    {# start / end 가 None 일 수도 있으니, 표시용은 조금 친절하게 #}
     <p class="stats-filter-note">
-      선택된 기간: {{ start }} ~ {{ end }}
+      선택된 기간:
+      {% if start and end %}
+        {{ start }} ~ {{ end }}
+      {% elif start and not end %}
+        {{ start }} ~ (마지막 날짜까지)
+      {% elif not start and end %}
+        (처음 날짜부터) ~ {{ end }}
+      {% else %}
+        전체 기간
+      {% endif %}
     </p>
   </div>
 
-  <!-- 체크리스트 (전체 기간) -->
+  <!-- ============================
+       2) 체크리스트 (전체 기간 기준)
+       - overall_* 값 사용
+       ============================ -->
   <div class="section-label">체크리스트 (전체 기간)</div>
   <div class="stats-grid">
     <div class="stat-card">
@@ -272,7 +296,10 @@
     </div>
   </div>
 
-  <!-- 체크리스트 (선택 기간) -->
+  <!-- ============================
+       3) 체크리스트 (선택 기간 기준)
+       - range_* 값 사용
+       ============================ -->
   <div class="section-label">체크리스트 (선택 기간)</div>
   <div class="stats-grid">
     <div class="stat-card">
@@ -301,7 +328,9 @@
     </div>
   </div>
 
-  <!-- 향후 확장 아이디어 -->
+  <!-- ============================
+       4) 향후 확장 아이디어 (메모용)
+       ============================ -->
   <div class="section-label">향후 확장 아이디어</div>
   <div class="stat-card stats-idea-card">
     <div class="stat-head">예: 월별 추이, 태그 기반 통계 등</div>
@@ -314,12 +343,16 @@
   </div>
 </div>
 
-<!-- 오른쪽 아래 고정 백업 / 복원 버튼 -->
+<!-- ============================
+     5) 오른쪽 아래 고정 DB 백업/복원 버튼
+     ============================ -->
 <div class="backup-restore-container">
+  <!-- DB 파일 다운로드 -->
   <a href="/backup/db" class="btn-stat-primary">
     DB 백업 다운로드
   </a>
 
+  <!-- DB 복원 업로드 -->
   <form
     method="post"
     action="/restore/db"
@@ -342,5 +375,4 @@
     </button>
   </form>
 </div>
-
 {% endblock %}

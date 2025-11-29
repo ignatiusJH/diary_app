@@ -1,25 +1,50 @@
+{# ---------------------------------------------------------
+  dashboard.html
+  - 홈(대시보드) 화면
+  - 오늘 달력 / 다가오는 일정 / 오늘 체크리스트를 보여주는 메인 화면
+  - base.html 을 상속해서 전체 레이아웃을 그대로 가져온다.
+---------------------------------------------------------- #}
 {% extends "base.html" %}
-{% block title %}오늘의 스텝로그{% endblock %}
 
+{# ---------------------------------------------------------
+  페이지 <title> 영역
+  - 상속한 base.html 의 {% block title %} 자리를 채우는 부분
+---------------------------------------------------------- #}
+{% block title %}
+오늘의 스텝로그
+{% endblock %}
+
+{# ---------------------------------------------------------
+  head 안에 들어가는 이 페이지 전용 CSS
+  - base.html 의 {% block head_style %} 자리에 들어간다.
+  - 대시보드 화면에서만 필요한 스타일 정의.
+---------------------------------------------------------- #}
 {% block head_style %}
 <style>
+
+  /* -------------------------------------------------------
+     대시보드 전체 레이아웃 구성
+     ------------------------------------------------------- */
   .dash-wrap {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 16px;                 /* 위아래 요소 간격 */
   }
 
+  /* 페이지 제목 스타일 (base 의 기본 스타일을 약간 조정) */
   .page-header .page-title {
     font-size: 24px;
     font-weight: 600;
     margin-bottom: 4px;
-    color: #3b2f26;
+    color: #3b2f26;            /* 진한 브라운 */
   }
 
-  /* 메인 영역 4:6 레이아웃 */
+  /* -------------------------------------------------------
+     메인 콘텐츠 영역: 좌측(달력) / 우측(체크리스트)
+     ------------------------------------------------------- */
   .dash-main {
     display: flex;
-    flex-direction: column;
+    flex-direction: column;    /* 기본은 모바일 기준 세로 배치 */
     gap: 16px;
   }
 
@@ -30,21 +55,19 @@
     gap: 16px;
   }
 
+  /* PC 화면(1024px 이상)에서는 4:6 비율로 가로로 배치 */
   @media (min-width: 1024px) {
     .dash-main {
       flex-direction: row;
       align-items: flex-start;
     }
-
-    .dash-left {
-      flex: 4;
-    }
-    .dash-right {
-      flex: 6;
-    }
+    .dash-left { flex: 4; }
+    .dash-right { flex: 6; }
   }
 
-  /* ===== Desert 톤 카드 공통 ===== */
+  /* -------------------------------------------------------
+     카드 스타일(Desert 톤) — 일정/달력/체크리스트 공통 박스
+     ------------------------------------------------------- */
   .card {
     background: #f7ecde;
     border-radius: 10px;
@@ -71,7 +94,9 @@
     color: #8b6f55;
   }
 
-  /* ===== 달력 ===== */
+  /* -------------------------------------------------------
+     달력 스타일
+     ------------------------------------------------------- */
   .calendar-head {
     display: flex;
     justify-content: space-between;
@@ -88,8 +113,8 @@
   .calendar-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;        /* 각 셀 너비 균등 */
     font-size: 12px;
-    table-layout: fixed;
     color: #3b2f26;
   }
 
@@ -107,21 +132,19 @@
     position: relative;
   }
 
-  /* 이번달이 아닌 날짜 */
+  /* 이번달이 아닌 날짜는 흐리게 */
   .cal-out {
     color: #c3b29a;
   }
 
-  /* 오늘 날짜 강조: 테두리 링 */
+  /* 오늘 날짜: 강조 테두리 */
   .cal-today {
     border: 2px solid #e48b47;
     border-radius: 10px;
-    box-sizing: border-box;
     font-weight: 600;
-    color: #3b2f26;
   }
 
-  /* 일정 있는 날 점 표시 */
+  /* 일정 있는 날: 초록색 점 표시 */
   .cal-has-schedule::after {
     content: "";
     width: 5px;
@@ -134,7 +157,9 @@
     transform: translateX(-50%);
   }
 
-  /* ===== 다가오는 일정 리스트 ===== */
+  /* -------------------------------------------------------
+     '다가오는 일정' 리스트
+     ------------------------------------------------------- */
   .schedule-list {
     display: flex;
     flex-direction: column;
@@ -149,12 +174,11 @@
 
   .schedule-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     padding: 6px 8px;
     border-radius: 8px;
-    background: #fbf3e7;
     border: 1px solid #d5c1a7;
+    background: #fbf3e7;
   }
 
   .schedule-main {
@@ -163,35 +187,30 @@
     gap: 2px;
   }
 
-  .schedule-title {
-    font-size: 13px;
-    color: #3b2f26;
-  }
+  .schedule-title { color: #3b2f26; }
+  .schedule-date { color: #8b6f55; font-size: 11px; }
 
-  .schedule-date {
-    font-size: 11px;
-    color: #8b6f55;
-  }
-
+  /* 오늘 날짜일 때 강조 */
   .schedule-date-today {
-    font-size: 11px;
     color: #c86a21;
+    font-size: 11px;
     font-weight: 600;
   }
 
-  /* ===== 오늘 체크리스트 ===== */
+  /* -------------------------------------------------------
+     오늘 체크리스트 요약
+     ------------------------------------------------------- */
   .dash-todo-list {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    font-size: 14px;
   }
 
   .dash-todo-item {
     padding: 10px 12px;
-    border-radius: 8px;
     background: #fbf3e7;
     border: 1px solid #d5c1a7;
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -203,6 +222,7 @@
     gap: 8px;
   }
 
+  /* 체크박스 모양만 낸 표시용 박스 */
   .dash-todo-checkbox {
     width: 14px;
     height: 14px;
@@ -223,41 +243,52 @@
 </style>
 {% endblock %}
 
+{# ---------------------------------------------------------
+  본문 내용 — base.html 의 {% block content %} 를 채우는 블록
+---------------------------------------------------------- #}
 {% block content %}
 <div class="dash-wrap">
+
+  <!-- -----------------------------------------------------
+       페이지 상단 제목 영역
+       ------------------------------------------------------ -->
   <div class="page-header">
     <div class="page-title">오늘의 스텝로그</div>
   </div>
 
   <div class="dash-main">
-    <!-- 왼쪽 : 달력 + 다가오는 일정 -->
+
+    <!-- -----------------------------------------------------
+         왼쪽: 달력 + 다가오는 일정
+         ------------------------------------------------------ -->
     <div class="dash-left">
-      <!-- 달력 카드 -->
+
+      <!-- 달력 카드 --------------------------------------------------- -->
       <section class="card">
         <div class="calendar-head">
+          <!-- 백엔드에서 넘겨준 현재 year / month 표시 -->
           <div class="calendar-month">{{ year }}년 {{ month }}월</div>
         </div>
 
         <table class="calendar-table">
           <thead>
             <tr>
-              <th>일</th>
-              <th>월</th>
-              <th>화</th>
-              <th>수</th>
-              <th>목</th>
-              <th>금</th>
-              <th>토</th>
+              <th>일</th><th>월</th><th>화</th>
+              <th>수</th><th>목</th><th>금</th><th>토</th>
             </tr>
           </thead>
+
           <tbody>
+            {# weeks: 2차원 배열 형태 — 1주씩 배열로 묶임 #}
             {% for week in weeks %}
               <tr>
                 {% for day in week %}
+                  {# Jinja 에서 동적 클래스 생성: class 리스트 만들고 조건별 append #}
                   {% set classes = [] %}
                   {% if not day.in_month %}{% set _ = classes.append('cal-out') %}{% endif %}
                   {% if day.is_today %}{% set _ = classes.append('cal-today') %}{% endif %}
                   {% if day.has_schedule %}{% set _ = classes.append('cal-has-schedule') %}{% endif %}
+
                   <td class="{{ ' '.join(classes) }}">
                     {{ day.day }}
                   </td>
@@ -268,7 +299,7 @@
         </table>
       </section>
 
-      <!-- 다가오는 일정 카드 -->
+      <!-- 다가오는 일정 카드 ------------------------------------------ -->
       <section class="card">
         <div class="card-header">
           <div class="card-title">다가오는 일정</div>
@@ -279,14 +310,10 @@
             {% for item in upcoming_items %}
               <div class="schedule-item">
                 <div class="schedule-main">
-                  <div class="schedule-title">
-                    {{ item.title }}
-                  </div>
+                  <div class="schedule-title">{{ item.title }}</div>
 
                   {% if item.date == today_str %}
-                    <div class="schedule-date-today">
-                      {{ item.date }} (오늘)
-                    </div>
+                    <div class="schedule-date-today">{{ item.date }} (오늘)</div>
                   {% else %}
                     <div class="schedule-date">{{ item.date }}</div>
                   {% endif %}
@@ -295,13 +322,21 @@
             {% endfor %}
           </div>
         {% else %}
-          <p class="schedule-empty">앞으로 15일 안에 등록된 일정이 없습니다.</p>
+          <p class="schedule-empty">
+            앞으로 15일 안에 등록된 일정이 없습니다.
+          </p>
         {% endif %}
       </section>
+
     </div>
 
-    <!-- 오른쪽 : 오늘 체크리스트 -->
+
+
+    <!-- -----------------------------------------------------
+         오른쪽: 오늘 체크리스트
+         ------------------------------------------------------ -->
     <div class="dash-right">
+
       <section class="card">
         <div class="card-header">
           <div class="card-title">오늘 체크리스트</div>
@@ -325,10 +360,14 @@
             {% endfor %}
           </div>
         {% else %}
-          <p class="dash-todo-empty">오늘 진행 중인 체크리스트가 없습니다.</p>
+          <p class="dash-todo-empty">
+            오늘 진행 중인 체크리스트가 없습니다.
+          </p>
         {% endif %}
       </section>
+
     </div>
+
   </div>
 </div>
 {% endblock %}

@@ -1,14 +1,20 @@
 {% extends "base.html" %}
 {% block title %}일정 - 스텝로그{% endblock %}
 
+{# 
+  head_style:
+  - base.html 에 정의된 head_style 블록을 이 페이지 전용 CSS로 덮어쓰기.
+#}
 {% block head_style %}
 <style>
+  /* 전체 일정 페이지 래퍼 */
   .schedule-wrap {
     display: flex;
     flex-direction: column;
     gap: 16px;
   }
 
+  /* 페이지 제목(일정) 스타일 */
   .page-header .page-title {
     font-size: 24px;
     font-weight: 600;
@@ -16,13 +22,15 @@
     color: #3b2f26;
   }
 
+  /* 좌/우(달력+목록 / 에디터) 레이아웃 컨테이너 */
   .section-grid {
     display: flex;
-    flex-direction: column;
+    flex-direction: column;  /* 기본: 모바일에서 세로 배치 */
     gap: 16px;
   }
 
   @media (min-width: 1024px) {
+    /* 데스크탑 이상: 가로 2열 배치 */
     .section-grid {
       flex-direction: row;
       align-items: flex-start;
@@ -38,7 +46,7 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
-      min-width: 0;
+      min-width: 0;  /* 오른쪽 카드가 너무 넓어지는 것 방지 */
     }
   }
 
@@ -49,7 +57,7 @@
     gap: 16px;
   }
 
-  /* ===== 카드 공통 : Desert 톤 ===== */
+  /* ===== 공통 카드 스타일 (사막톤) ===== */
   .card {
     background: #f7ecde;
     border-radius: 10px;
@@ -76,8 +84,9 @@
     color: #8b6f55;
   }
 
-  /* ===== 캘린더 영역 ===== */
+  /* ===== 달력 영역 ===== */
 
+  /* 달력 상단 (이전/다음 버튼 + 연/월 셀렉트) */
   .calendar-head {
     display: flex;
     justify-content: center;
@@ -92,6 +101,7 @@
     gap: 6px;
   }
 
+  /* 이전/다음 달 이동 버튼 */
   .cal-nav-btn {
     border-radius: 999px;
     border: 1px solid #d5c1a7;
@@ -106,6 +116,7 @@
     background: #ebd6bf;
   }
 
+  /* 연/월 선택 select 박스 */
   .cal-select {
     border-radius: 999px;
     border: 1px solid #d5c1a7;
@@ -115,6 +126,7 @@
     padding: 4px 12px;
   }
 
+  /* 달력 테이블 */
   .calendar-table {
     width: 100%;
     border-collapse: separate;
@@ -143,23 +155,24 @@
     background: #f2e2cf;
   }
 
+  /* 이번 달이 아닌 날짜 */
   .cal-out {
     color: #c3b29a;
   }
 
-  /* 선택된 날 (기본) */
+  /* 선택된 날 기본 스타일 */
   .cal-selected {
     background: #c86a21;
     color: #fff;
     font-weight: 600;
   }
 
-  /* 오늘이면서 선택된 날일 때 숫자색을 페이지 배경색(연베이지)로 */
+  /* 오늘 + 선택된 날일 때 텍스트 컬러 조정 */
   .cal-today.cal-selected {
     color: #f3ecdd;
   }
 
-  /* 일정 있는 날 점 */
+  /* 일정 있는 날 하단 점 표시 */
   .cal-has-schedule::after {
     content: "";
     width: 5px;
@@ -172,6 +185,7 @@
     transform: translateX(-50%);
   }
 
+  /* 공휴일 강조 */
   .cal-holiday {
     color: #d17826;
     font-weight: 600;
@@ -186,6 +200,7 @@
     font-size: 13px;
   }
 
+  /* 목록의 각 일정 한 줄 (button) */
   .schedule-item {
     width: 100%;
     text-align: left;
@@ -209,6 +224,7 @@
     color: #3b2f26;
   }
 
+  /* 날짜/시간/장소 한 줄 메타 정보 */
   .schedule-meta {
     font-size: 11px;
     color: #8b6f55;
@@ -224,7 +240,7 @@
     color: #8b6f55;
   }
 
-  /* ===== 오른쪽 : 에디터 ===== */
+  /* ===== 오른쪽 : 일정 입력/수정 에디터 ===== */
 
   .editor-form {
     display: flex;
@@ -239,7 +255,7 @@
     color: #8b6f55;
   }
 
-  /* 인풋/텍스트에어리어 기본 박스 공통 */
+  /* 인풋/텍스트에어리어 공통 박스 스타일 */
   .editor-input,
   .editor-textarea {
     width: 100%;
@@ -259,19 +275,19 @@
     white-space: pre-wrap;
   }
 
-  /* iOS에서 date/time 인풋 여백/모양 통일 */
+  /* iOS에서 date/time 인풋 모양 통일 및 높이 맞추기 */
   .editor-input[type="date"],
   .editor-input[type="time"] {
     -webkit-appearance: none;   /* 사파리 기본 스타일 제거 */
     appearance: none;
-    padding: 9px 10px;          /* 다른 인풋이랑 동일 */
-    height: 36px;        /* 필요하면 46~48로 조금 더 키워도 됨 */
-    line-height: 44px;   /* 세로 가운데 정렬 느낌 */
+    padding: 9px 10px;
+    height: 36px;               /* 높이 고정 */
+    line-height: 44px;          /* 세로 가운데 정렬 느낌 */
   }
 
   .editor-input[type="date"]::-webkit-calendar-picker-indicator,
   .editor-input[type="time"]::-webkit-calendar-picker-indicator {
-    filter: invert(0.5);        /* 아이콘 색만 살짝 어두운 배경에 맞추기 */
+    filter: invert(0.5);        /* 아이콘 색 살짝 조정 */
   }
 
   .editor-bottom {
@@ -282,7 +298,7 @@
     gap: 8px;
   }
 
-  /* ===== 버튼 – 오렌지 통일 ===== */
+  /* ===== 오렌지 라운드 버튼 (새 일정/저장/삭제) ===== */
 
   .btn-round {
     padding: 7px 18px;
@@ -300,7 +316,7 @@
     border-color: #a85416;
   }
 
-  /* === 추가 오버라이드: 달력 hover/오늘 표시 === */
+  /* ===== 달력 hover / 오늘 표시 오버라이드 ===== */
 
   .calendar-table td:hover {
     background: #f2e2cf;
@@ -322,9 +338,12 @@
     border-radius: 10px !important;
   }
 
-  /* 모바일에서: 일정 작성 영역을 달력/목록보다 위로 올리기 */
+  /* ===== 모바일: 일정 작성 영역을 위로 올리기 =====
+     - 작은 화면에서 "작성 폼"을 먼저 보고
+       아래로 스크롤하면 달력/목록이 나오도록 순서를 뒤집는다.
+  */
   @media (max-width: 768px) {
-    .schedule-grid {
+    .section-grid {
       display: flex;
       flex-direction: column;
     }
@@ -337,11 +356,14 @@
       order: 1;
     }
   }
+  /* ▲ FIX: 원래 여기 .schedule-grid 로 되어 있었는데 실제 HTML은 .section-grid라서
+           모바일에서 레이아웃 순서가 안 바뀌는 버그가 있었다. */
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="schedule-wrap">
+  <!-- 상단 제목 영역 -->
   <div class="page-header">
     <div class="page-title">일정</div>
   </div>
@@ -356,8 +378,10 @@
         </div>
 
         <div class="calendar-head">
+          <!-- 이전 달 -->
           <button type="button" class="cal-nav-btn" id="cal-prev">‹</button>
 
+          <!-- 연/월 선택 -->
           <div class="calendar-label">
             <select id="year-select" class="cal-select"></select>
             <select id="month-select" class="cal-select">
@@ -376,9 +400,11 @@
             </select>
           </div>
 
+          <!-- 다음 달 -->
           <button type="button" class="cal-nav-btn" id="cal-next">›</button>
         </div>
 
+        <!-- 실제 달력 테이블 -->
         <table class="calendar-table">
           <thead>
             <tr>
@@ -395,7 +421,7 @@
         </table>
       </section>
 
-      <!-- 목록 카드 -->
+      <!-- 일정 목록 카드 -->
       <section class="card">
         <div class="card-header">
           <div class="card-title">목록</div>
@@ -407,6 +433,7 @@
         {% if items %}
           <div class="schedule-list">
             {% for item in items %}
+              {# time_str / time 둘 다 대응 (옛 구조 호환) #}
               {% set _time = item.time_str if item.time_str is defined else (item.time if item.time is defined else None) %}
               {% set _place = item.place if item.place is defined else None %}
               <button
@@ -436,7 +463,7 @@
       </section>
     </div>
 
-    <!-- ===== 오른쪽 : 입력 / 수정 ===== -->
+    <!-- ===== 오른쪽 : 입력 / 수정 폼 ===== -->
     <div class="section-right">
       <section class="card">
         <div class="card-header">
@@ -446,12 +473,18 @@
           </div>
         </div>
 
+        {# 
+          일정 작성 / 수정 공용 폼
+          - JS 가 "새 일정"일 땐 /schedule/new
+          - "수정 모드"일 땐 /schedule/{id}/update 로 action 을 바꿔준다.
+        #}
         <form
           id="schedule-editor-form"
           class="editor-form"
           method="post"
           action="/schedule/new"
         >
+          <!-- 수정 시에는 이 hidden 에 id 를 넣어서 서버가 어떤 일정인지 알 수 있게 함 -->
           <input type="hidden" id="schedule-id-hidden" name="schedule_id">
 
           <div class="editor-row">
@@ -508,12 +541,15 @@
           </div>
 
           <div class="editor-bottom">
+            <!-- 작성 폼 초기화 -->
             <button type="button" class="btn-round" id="btn-new">
               새 일정
             </button>
+            <!-- 저장 (작성/수정 둘 다 이 버튼 사용) -->
             <button type="submit" class="btn-round" id="btn-save">
               저장
             </button>
+            <!-- 삭제 (수정 모드에서만 보임) -->
             <button
               type="button"
               class="btn-round"
@@ -525,7 +561,7 @@
           </div>
         </form>
 
-        <!-- 삭제용 숨김 폼 -->
+        <!-- 삭제 전용 숨김 폼: action 은 JS에서 /schedule/{id}/delete 로 세팅 -->
         <form id="schedule-delete-form" method="post" style="display:none;"></form>
       </section>
     </div>
@@ -534,7 +570,7 @@
 
 <script>
   (function () {
-    // ===== 공통 DOM =====
+    // ===== 공통 DOM 레퍼런스 =====
     const editorForm   = document.getElementById("schedule-editor-form");
     const deleteForm   = document.getElementById("schedule-delete-form");
     const idHidden     = document.getElementById("schedule-id-hidden");
@@ -553,7 +589,7 @@
 
     let currentId = null;
 
-    // 오늘 날짜 (YYYY-MM-DD)
+    // 오늘 날짜를 YYYY-MM-DD 문자열로 반환
     function todayStr() {
       const d = new Date();
       const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -561,7 +597,7 @@
       return d.getFullYear() + "-" + m + "-" + day;
     }
 
-    // ===== 모드 전환 =====
+    // ===== 모드 전환: 새 일정 작성 =====
     function setCreateMode(selectedDate) {
       currentId = null;
       idHidden.value = "";
@@ -574,11 +610,13 @@
       placeInput.value = "";
       memoInput.value  = "";
 
+      // 새 일정은 /schedule/new 로 전송
       editorForm.action = "/schedule/new";
       deleteForm.action = "";
       btnDelete.style.display = "none";
     }
 
+    // ===== 모드 전환: 일정 수정 =====
     function setEditMode(data) {
       currentId = data.id;
       idHidden.value = data.id || "";
@@ -589,6 +627,7 @@
       titleInput.value = data.title || "";
       dateInput.value  = data.date || todayStr();
 
+      // time_str 또는 time 필드 중 있는 것을 사용
       if (data.time_str !== undefined) {
         timeInput.value = data.time_str || "";
       } else if (data.time !== undefined) {
@@ -600,20 +639,22 @@
       placeInput.value = data.place || "";
       memoInput.value  = data.memo || "";
 
+      // 수정 시에는 /schedule/{id}/update 로 전송
       editorForm.action = "/schedule/" + data.id + "/update";
+      // 삭제 폼도 /schedule/{id}/delete 로 설정
       deleteForm.action = "/schedule/" + data.id + "/delete";
       btnDelete.style.display = "inline-block";
     }
 
-    // 초기 상태
+    // 페이지 로딩 시 기본은 새 일정 모드
     setCreateMode();
 
-    // 새 일정 버튼
+    // "새 일정" 버튼 → 폼만 초기화(날짜는 현재 선택/오늘 유지)
     btnNew.addEventListener("click", function () {
       setCreateMode(dateInput.value || todayStr());
     });
 
-    // 목록 클릭 → JSON 불러오기
+    // 목록에서 일정 클릭 → 해당 일정 정보를 가져와 수정 모드로 변경
     listButtons.forEach(function (btn) {
       btn.addEventListener("click", function () {
         const id = btn.dataset.id;
@@ -623,6 +664,7 @@
           .then(function (res) { return res.json(); })
           .then(function (data) {
             setEditMode(data);
+            // 달력 쪽 선택 날짜도 같이 맞춰주기
             if (data.date) {
               setSelectedDate(data.date);
             }
@@ -634,7 +676,7 @@
       });
     });
 
-    // 저장 시 확인
+    // 저장 버튼 클릭 시 확인 창
     editorForm.addEventListener("submit", function (e) {
       const msg = currentId
         ? "이 일정 내용을 수정할까요?"
@@ -644,27 +686,28 @@
       }
     });
 
-    // 삭제 버튼
+    // 삭제 버튼 클릭 시 → 숨은 deleteForm을 사용해 삭제 요청
     btnDelete.addEventListener("click", function () {
       if (!currentId) return;
       if (!window.confirm("정말 삭제할까요?")) return;
       deleteForm.submit();
     });
 
-    // ===== 달력 =====
+    // ===== 달력 렌더링 관련 =====
     const calBody    = document.getElementById("calendar-body");
     const calPrev    = document.getElementById("cal-prev");
     const calNext    = document.getElementById("cal-next");
     const yearSelect = document.getElementById("year-select");
     const monthSelect= document.getElementById("month-select");
 
-    // 일정이 있는 날짜 Set (YYYY-MM-DD)
+    // 일정이 있는 날짜 목록을 Set 으로 관리 (YYYY-MM-DD)
     const scheduleDateSet = new Set(
       Array.from(listButtons).map(function (btn) {
         return btn.dataset.date;
       })
     );
 
+    // 양력 공휴일 목록 (월-일 기준)
     const SOLAR_HOLIDAYS = {
       "01-01": "신정",
       "03-01": "삼일절",
@@ -681,12 +724,14 @@
     let currentMonth = today.getMonth(); // 0~11
     let selectedDate = todayStr();
 
+    // Date 객체 → YYYY-MM-DD
     function formatDate(d) {
       const m = String(d.getMonth() + 1).padStart(2, "0");
       const day = String(d.getDate()).padStart(2, "0");
       return d.getFullYear() + "-" + m + "-" + day;
     }
 
+    // 해당 날짜가 공휴일이면 이름을 반환, 아니면 null
     function getSolarHolidayName(d) {
       const mm = String(d.getMonth() + 1).padStart(2, "0");
       const dd = String(d.getDate()).padStart(2, "0");
@@ -694,12 +739,14 @@
       return SOLAR_HOLIDAYS[key] || null;
     }
 
+    // 날짜 선택 시 내부 상태 + 입력 폼 동기화
     function setSelectedDate(dateStr) {
       selectedDate = dateStr;
       dateInput.value = dateStr;
       renderCalendar();
     }
 
+    // 연도 select 채우기 (현재 연도를 중심으로 ±50년)
     function fillYearOptions() {
       const baseYear = today.getFullYear();
       const from = baseYear - 50;
@@ -714,17 +761,19 @@
       }
     }
 
+    // select 박스 값과 내부 year/month 동기화
     function syncSelects() {
       yearSelect.value = String(currentYear);
       monthSelect.value = String(currentMonth);
     }
 
+    // 달력 다시 그리기
     function renderCalendar() {
       calBody.innerHTML = "";
       syncSelects();
 
       const first = new Date(currentYear, currentMonth, 1);
-      let day = 1 - first.getDay();
+      let day = 1 - first.getDay(); // 첫 주의 시작 날짜(일요일 기준) 계산
 
       for (let week = 0; week < 6; week++) {
         const tr = document.createElement("tr");
@@ -737,28 +786,34 @@
           td.textContent = d.getDate();
           td.dataset.date = dateStr;
 
+          // 이번 달이 아닌 날짜 흐리게 표시
           if (d.getMonth() !== currentMonth) {
             td.classList.add("cal-out");
           }
 
+          // 오늘 표시
           if (dateStr === formatDate(today)) {
             td.classList.add("cal-today");
           }
 
+          // 선택된 날짜 강조
           if (dateStr === selectedDate) {
             td.classList.add("cal-selected");
           }
 
+          // 이 날짜에 일정이 있으면 점 표시 클래스 추가
           if (scheduleDateSet.has(dateStr)) {
             td.classList.add("cal-has-schedule");
           }
 
+          // 공휴일이면 색 + title 툴팁
           const holidayName = getSolarHolidayName(d);
           if (holidayName) {
             td.classList.add("cal-holiday");
             td.title = holidayName;
           }
 
+          // 날짜 클릭 시 선택 날짜 변경
           td.addEventListener("click", function () {
             setSelectedDate(td.dataset.date);
           });
@@ -770,6 +825,7 @@
       }
     }
 
+    // 이전 달 버튼
     calPrev.addEventListener("click", function () {
       currentMonth -= 1;
       if (currentMonth < 0) {
@@ -779,6 +835,7 @@
       renderCalendar();
     });
 
+    // 다음 달 버튼
     calNext.addEventListener("click", function () {
       currentMonth += 1;
       if (currentMonth > 11) {
@@ -788,16 +845,19 @@
       renderCalendar();
     });
 
+    // 연도 셀렉트가 바뀌면 해당 연도로 이동
     yearSelect.addEventListener("change", function () {
       currentYear = parseInt(yearSelect.value, 10);
       renderCalendar();
     });
 
+    // 월 셀렉트가 바뀌면 해당 월로 이동
     monthSelect.addEventListener("change", function () {
       currentMonth = parseInt(monthSelect.value, 10);
       renderCalendar();
     });
 
+    // 초기 설정 + 렌더링
     fillYearOptions();
     setSelectedDate(todayStr());
     renderCalendar();

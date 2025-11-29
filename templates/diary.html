@@ -1,14 +1,21 @@
 {% extends "base.html" %}
 {% block title %}기록 - 스텝로그{% endblock %}
 
+{# 
+  head_style:
+  - base.html 안에 있는 head_style 블록을 재정의해서
+    "기록 페이지" 전용 CSS 를 넣는 자리.
+#}
 {% block head_style %}
 <style>
+  /* 전체 기록 페이지 레이아웃 래퍼 */
   .diary-wrap {
     display: flex;
     flex-direction: column;
     gap: 16px;
   }
 
+  /* 기록 페이지에서의 제목 스타일 (조금 더 크게) */
   .page-header .page-title {
     font-size: 24px;
     font-weight: 600;
@@ -16,25 +23,27 @@
     color: #3b2f26;
   }
 
+  /* 왼쪽(검색+목록) / 오른쪽(에디터) 구조를 잡는 그리드 컨테이너 */
   .section-grid {
     display: flex;
-    flex-direction: column;
+    flex-direction: column;   /* 모바일: 세로 배열 */
     gap: 16px;
   }
 
   @media (min-width: 1024px) {
+    /* 데스크탑 이상: 좌/우 2열 레이아웃 */
     .section-grid {
       flex-direction: row;
       align-items: flex-start;
     }
     .section-left {
-      flex: 4;
+      flex: 4;                       /* 왼쪽 영역 4 비율 */
       display: flex;
       flex-direction: column;
       gap: 16px;
     }
     .section-right {
-      flex: 6;
+      flex: 6;                       /* 오른쪽 영역 6 비율 */
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -48,7 +57,9 @@
     gap: 16px;
   }
 
-  /* ===== Desert 톤 카드 공통 ===== */
+  /* ===== Desert 톤 카드 공통 =====
+     - base.html 의 .card 를 “기록 페이지용 톤”으로 덮어쓰기
+  */
   .card {
     background: #f7ecde;
     border-radius: 10px;
@@ -75,8 +86,10 @@
     color: #8b6f55;
   }
 
-  /* ===== 버튼 ===== */
-
+  /* ===== 버튼 공통 =====
+     - 저장/삭제/ghost 버튼 스타일.
+     - a 태그든 button 태그든 공통으로 사용 가능하도록 설계.
+  */
   .btn-primary,
   .btn-danger,
   .btn-ghost {
@@ -94,7 +107,7 @@
     text-decoration: none;
   }
 
-  /* 저장 버튼 (오렌지) */
+  /* 저장 버튼 (오렌지 계열) */
   .btn-primary {
     background: #c86a21;
     border-color: #c86a21;
@@ -106,7 +119,7 @@
     border-color: #a85416;
   }
 
-  /* 삭제 버튼 (빨간색) */
+  /* 삭제 버튼 (빨간 계열) */
   .btn-danger {
     background: #dc2626;
     border-color: #dc2626;
@@ -118,7 +131,7 @@
     border-color: #b91c1c;
   }
 
-  /* Ghost 버튼 (새 기록 입력 등) */
+  /* Ghost 버튼 (테두리만 있고 배경 없음) */
   .btn-ghost {
     background: transparent;
     border-color: #e2d2b8;
@@ -132,6 +145,8 @@
   }
 
   /* ===== 검색 카드 ===== */
+
+  /* 검색 폼 전체 */
   .filter-form {
     display: flex;
     flex-direction: column;
@@ -149,6 +164,7 @@
     color: #8b6f55;
   }
 
+  /* 셀렉트/인풋 공통 스타일 */
   .filter-select,
   .filter-input {
     width: 100%;
@@ -165,7 +181,7 @@
     margin-top: 4px;
   }
 
-  /* 리스트 / 갤러리 토글 */
+  /* 리스트 / 갤러리 뷰 토글 스위치 */
   .view-toggle {
     display: inline-flex;
     border-radius: 999px;
@@ -190,13 +206,16 @@
     color: #fff7ec;
   }
 
-  /* ===== 목록 ===== */
+  /* ===== 리스트 뷰 ===== */
+
+  /* 리스트 전체 컨테이너 */
   .entry-list {
     display: flex;
     flex-direction: column;
     gap: 6px;
   }
 
+  /* 각 기록 한 줄 (button 태그에 적용) */
   .entry-item {
     display: block;
     padding: 10px 12px;
@@ -224,11 +243,12 @@
     color: #8b6f55;
   }
 
+  /* 본문 일부를 보여주는 스니펫 */
   .entry-snippet {
     margin-top: 4px;
     font-size: 12px;
     color: #8b6f55;
-    max-height: 34px;
+    max-height: 34px;       /* 두 줄 정도까지만 보이도록 제한 */
     overflow: hidden;
   }
 
@@ -252,13 +272,16 @@
     color: #8b6f55;
   }
 
-  /* 갤러리 뷰 */
+  /* ===== 갤러리 뷰 ===== */
+
+  /* 카드들이 격자 형태로 나열되는 컨테이너 */
   .entry-gallery {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 10px;
   }
 
+  /* 갤러리 모드에서 한 개의 카드 */
   .gallery-card {
     border-radius: 10px;
     border: 1px solid #d5c1a7;
@@ -272,6 +295,7 @@
     background: #f2e2cf;
   }
 
+  /* 썸네일 영역 (이미지가 들어가는 박스) */
   .gallery-thumb {
     width: 100%;
     height: 120px;
@@ -284,7 +308,7 @@
   .gallery-thumb img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: cover;   /* 이미지 비율 유지하면서 박스를 꽉 채우기 */
   }
 
   .gallery-title {
@@ -299,7 +323,8 @@
     color: #8b6f55;
   }
 
-  /* ===== 에디터 ===== */
+  /* ===== 에디터(오른쪽 폼 영역) ===== */
+
   .editor-form {
     display: flex;
     flex-direction: column;
@@ -313,6 +338,7 @@
     color: #8b6f55;
   }
 
+  /* 제목/태그/파일 입력 공통 스타일 */
   .editor-input,
   .editor-textarea,
   .editor-file-input {
@@ -326,7 +352,7 @@
     box-sizing: border-box;
   }
 
-  /* 파일 선택 버튼만 커스텀 */
+  /* 파일 선택 버튼만 별도 스타일 */
   .editor-file-input::file-selector-button {
     padding: 6px 12px;
     margin-right: 8px;
@@ -344,13 +370,14 @@
   }
 
   .editor-textarea {
-    min-height: 400px;
+    min-height: 400px;    /* 본문 입력 영역 높이 */
     resize: vertical;
     line-height: 1.5;
-    white-space: pre-wrap;
+    white-space: pre-wrap;  /* 줄바꿈 유지 */
   }
 
-  /* ===== 이미지 미리보기 ===== */
+  /* ===== 이미지 미리보기 영역 ===== */
+
   .editor-image-preview-row {
     margin-top: 8px;
   }
@@ -361,23 +388,25 @@
     margin-bottom: 4px;
   }
 
+  /* 이미지 프리뷰를 감싸는 박스 */
   .editor-image-preview-box {
     width: 100%;
-    padding: 8px;                 /* 안쪽 여백 추가 */
-    box-sizing: border-box;       /* 패딩 포함해서 폭 계산 */
-    border-radius: 10px;          /* 카드와 맞추거나 조금 더 작게 */
+    padding: 8px;                 /* 이미지와 테두리 사이 여백 */
+    box-sizing: border-box;       /* 패딩 포함해서 너비 계산 */
+    border-radius: 10px;
     border: 1px solid #d5c1a7;
-    background: #f7ecde;          /* 카드랑 거의 같은 톤 */
+    background: #f7ecde;
   }
 
   .editor-image-preview-box img {
     width: 100%;
     height: auto;
     display: block;
-    border-radius: 6px;           /* 테두리랑 겹치지 않게 */
+    border-radius: 6px;           /* 박스 안에서 살짝 둥글게 */
     background: #e1d3c1;
-    cursor: pointer;              /* 클릭 가능 표시 */
-}
+    cursor: pointer;              /* 클릭 가능하다는 표시 */
+  }
+  /* ▲ FIX: 원래 여기 뒤에 여분의 '}' 가 하나 더 있었는데 제거함 (CSS 문법 오류 방지) */
 
   .editor-bottom {
     display: flex;
@@ -400,7 +429,7 @@
     color: #8b6f55;
   }
 
-  /* 페이지네이션 */
+  /* 페이지네이션 (목록 아래 페이지 번호) */
   .pagination {
     margin-top: 10px;
     font-size: 12px;
@@ -424,18 +453,20 @@
     color: #fff7ec;
   }
 
-  /* 모바일에서 기록 작성 폼을 위로 올리기 */
+  /* 모바일에서 기록 작성 폼을 위로 올리기:
+     - 작은 화면에서는 “작성”을 먼저 보고, 그 아래에 목록을 보도록 설계
+  */
   @media (max-width: 768px) {
     .section-grid {
       flex-direction: column;
     }
 
     .section-left {
-      order: 2;  /* 목록 카드 아래로 */
+      order: 2;  /* 목록 카드 아래로 내려감 */
     }
 
     .section-right {
-      order: 1;  /* 작성 폼 위로 */
+      order: 1;  /* 작성 폼이 위로 올라감 */
     }
   }
 </style>
@@ -443,6 +474,7 @@
 
 {% block content %}
 <div class="diary-wrap">
+  <!-- 페이지 상단 제목 -->
   <div class="page-header">
     <div class="page-title">기록</div>
   </div>
@@ -456,6 +488,10 @@
           <div class="card-title">검색</div>
         </div>
 
+        {# 
+          method="get": 검색 조건을 쿼리스트링으로 넘김
+          → /diary?range=...&start=...&tag=...&view=...
+        #}
         <form method="get" class="filter-form">
           <div class="filter-row">
             <div class="filter-label">기간</div>
@@ -489,6 +525,7 @@
             >
           </div>
 
+          {# 현재 뷰 모드(list/gallery)는 hidden 으로 유지해서 검색해도 뷰 타입이 유지되게 함 #}
           <input type="hidden" name="view" value="{{ view }}">
 
           <div class="filter-row filter-submit">
@@ -502,6 +539,7 @@
         <div class="card-header">
           <div style="display:flex;align-items:center;gap:8px;">
             <div class="card-title">목록</div>
+            <!-- 리스트 / 갤러리 보기 토글 -->
             <div class="view-toggle">
               <a
                 class="view-btn {% if view == 'list' %}active{% endif %}"
@@ -524,9 +562,11 @@
         </div>
 
         {% if entries %}
+          {# 갤러리 모드 #}
           {% if view == "gallery" %}
             <div class="entry-gallery">
               {% for e in entries %}
+                <!-- 각 카드에 data-entry-id를 박아서 JS로 클릭 이벤트 연결 -->
                 <button
                   type="button"
                   class="gallery-card"
@@ -545,6 +585,7 @@
               {% endfor %}
             </div>
           {% else %}
+          {# 리스트 모드 #}
             <div class="entry-list">
               {% for e in entries %}
                 <button
@@ -569,6 +610,7 @@
             </div>
           {% endif %}
 
+          {# 페이지 수가 1보다 클 때만 페이지네이션 표시 #}
           {% if total_pages > 1 %}
             <div class="pagination">
               {% for p in range(1, total_pages + 1) %}
@@ -587,7 +629,7 @@
       </section>
     </div>
 
-    <!-- 오른쪽: 기록 작성 / 수정 -->
+    <!-- 오른쪽: 기록 작성 / 수정 폼 -->
     <div class="section-right">
       <section class="card">
         <div class="card-header">
@@ -605,6 +647,10 @@
           </div>
         </div>
 
+        {# 
+          기록 작성/수정 공용 폼
+          - JS가 "작성 모드" / "수정 모드" 에 따라 action을 /save 또는 /entry/{id}/edit 로 바꿔준다.
+        #}
         <form
           id="editor-form"
           class="editor-form"
@@ -612,8 +658,11 @@
           action="/save"
           enctype="multipart/form-data"
         >
+          <!-- 현재 수정 중인 기록 id (새 기록일 때는 비움) -->
           <input type="hidden" id="editor-entry-id">
+          <!-- list / gallery 정보 유지 -->
           <input type="hidden" name="view" value="{{ view }}">
+          <!-- 저장 후 다시 돌아올 주소 (현재 URL 그대로) -->
           <input type="hidden" name="redirect_url" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
 
           <div class="editor-row">
@@ -637,7 +686,7 @@
             ></textarea>
           </div>
 
-          <!-- ★ 첨부 이미지 미리보기 영역 (내용 아래, 파일첨부 위) -->
+          <!-- 첨부 이미지 미리보기 영역 (기록 수정 시에만 보여줌) -->
           <div class="editor-row editor-image-preview-wrap" id="image-preview-row" style="display:none;">
             <label>첨부된 사진</label>
             <div class="editor-image-preview-box">
@@ -688,7 +737,7 @@
           </div>
         </form>
 
-        <!-- 삭제용 숨김 폼 -->
+        <!-- 삭제 요청용 숨겨진 폼 (action 은 JS에서 설정) -->
         <form id="delete-form" method="post" style="display:none;">
           <input type="hidden" name="view" value="{{ view }}">
           <input type="hidden" name="redirect_url" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}">
@@ -700,6 +749,7 @@
 
 <script>
   (function () {
+    // 목록/갤러리에서 각 기록 카드(버튼)들을 모두 가져오기
     const listItems      = document.querySelectorAll("[data-entry-id]");
     const editorTitle    = document.getElementById("editor-title");
     const modeBadge      = document.getElementById("editor-mode-badge");
@@ -713,11 +763,11 @@
     const deleteButton   = document.getElementById("delete-button");
     const newEntryButton = document.getElementById("new-entry-button");
 
-    // ★ 이미지 프리뷰 관련 요소
+    // 이미지 프리뷰 관련 요소
     const imagePreviewRow = document.getElementById("image-preview-row");
     const imagePreview    = document.getElementById("image-preview");
     
-    // ★ 이미지 클릭 시 새 창으로 크게 열기
+    // 이미지 클릭 시 새 창에서 크게 보기
     if (imagePreview) {
       imagePreview.addEventListener("click", function () {
         if (!imagePreview.src) return;
@@ -725,8 +775,10 @@
       });
     }
 
+    // 현재 편집 중인 기록 id (없으면 "새 기록" 상태)
     let currentId = null;
 
+    // === 새 기록 모드 설정 ===
     function setCreateMode() {
       currentId = null;
       entryIdHidden.value = "";
@@ -739,7 +791,7 @@
         photoInput.value = "";
       }
 
-      // ★ 새 기록 모드에서는 이미지 프리뷰 감추기
+      // 새 기록 모드에서는 이미지 프리뷰 숨김
       if (imagePreviewRow) {
         imagePreviewRow.style.display = "none";
       }
@@ -747,20 +799,26 @@
         imagePreview.src = "";
       }
 
+      // /save 엔드포인트로 POST
       editorForm.action = "/save";
+
+      // 삭제 버튼 숨김
       deleteButton.style.display = "none";
     }
 
+    // === 기존 기록 수정 모드 설정 ===
     function setEditMode(entry) {
       currentId = entry.id;
       entryIdHidden.value = entry.id;
       editorTitle.textContent = "기록 수정";
       modeBadge.textContent = "수정 모드";
+
+      // 서버에서 받은 데이터를 입력 폼에 채워 넣기
       titleInput.value = entry.title || "";
       contentInput.value = (entry.content || "").replace(/\r\n/g, "\n");
       tagsInput.value = (entry.tags || []).join(", ");
 
-      // ★ 첨부 이미지가 있을 경우 프리뷰 표시
+      // 첨부 이미지가 있을 경우 미리보기 보이기
       if (imagePreviewRow && imagePreview) {
         if (entry.image_url) {
           imagePreviewRow.style.display = "block";
@@ -771,11 +829,16 @@
         }
       }
 
+      // 수정 시에는 /entry/{id}/edit 로 보냄
       editorForm.action = "/entry/" + entry.id + "/edit";
+      // 삭제 폼 action 도 /entry/{id}/delete 로 설정
       deleteForm.action  = "/entry/" + entry.id + "/delete";
+
+      // 삭제 버튼 표시
       deleteButton.style.display = "inline-flex";
     }
 
+    // 목록(리스트/갤러리 공통)에서 기록 클릭 시 → 해당 기록을 API로 불러와서 수정 모드로 전환
     listItems.forEach(function (el) {
       el.addEventListener("click", function () {
         const id = el.dataset.entryId;
@@ -791,12 +854,14 @@
       });
     });
 
+    // "새 기록 입력" 버튼 → 항상 새 기록 모드
     if (newEntryButton) {
       newEntryButton.addEventListener("click", function () {
         setCreateMode();
       });
     }
 
+    // 저장 버튼 클릭 시, 모드에 따라 다른 확인 문구
     editorForm.addEventListener("submit", function (e) {
       const message = currentId
         ? "이대로 수정할까요?"
@@ -806,12 +871,14 @@
       }
     });
 
+    // 삭제 버튼 클릭 시 → 확인 후 숨은 폼으로 POST
     deleteButton.addEventListener("click", function () {
       if (!currentId) return;
       if (!confirm("정말 삭제할까요?")) return;
       deleteForm.submit();
     });
 
+    // 페이지가 로드될 때 기본은 "새 기록" 모드
     setCreateMode();
   })();
 </script>
